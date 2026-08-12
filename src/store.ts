@@ -1,3 +1,4 @@
+import { DatabaseSync } from "node:sqlite";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
@@ -9,31 +10,82 @@ export interface Task {
   createdAt: string;
 }
 
+interface TaskRow {
+  id: number;
+  text: string;
+  done: number;
+  createdAt: string;
+}
+
+let db: DatabaseSync | undefined;
+let dbPath: string | undefined;
+
 function getStoreDir(): string {
   return path.join(os.homedir(), ".taskfile");
 }
 
 function getStoreFile(): string {
-  return path.join(getStoreDir(), "tasks.json");
+  return path.join(getStoreDir(), "tasks.db");
 }
 
-export function loadTasks(): Task[] {
-  const storeFile = getStoreFile();
-  if (!fs.existsSync(storeFile)) {
-    return [];
+function rowToTask(row: TaskRow): Task {
+  return { id: row.id, text: row.text, done: !!row.done, createdAt: row.createdAt };
+}
+
+function getDb(): DatabaseSync {
+  const currentPath = getStoreFile();
+
+  if (db && dbPath === currentPath) {
+    return db;
   }
-  const raw = fs.readFileSync(storeFile, "utf-8");
-  return JSON.parse(raw) as Task[];
-}
 
-export function saveTasks(tasks: Task[]): void {
+  if (db) {
+    db.close();
+  }
+
   const storeDir = getStoreDir();
   if (!fs.existsSync(storeDir)) {
     fs.mkdirSync(storeDir, { recursive: true });
   }
-  fs.writeFileSync(getStoreFile(), JSON.stringify(tasks, null, 2));
+
+  db = new DatabaseSync(currentPath);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      done INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL
+    )
+  `);
+  dbPath = currentPath;
+
+  return db;
 }
 
-export function getNextId(tasks: Task[]): number {
-  return tasks.reduce((max, task) => Math.max(max, task.id), 0) + 1;
+export function loadTasks(): Task[] {
+  const rows = getDb()
+    .prepare("SELECT id, text, done, createdAt FROM tasks ORDER BY id")
+    .all() as unknown as TaskRow[];
+  return rows.map(rowToTask);
+}
+
+export function addTask(text: string): Task {
+  const createdAt = new Date().toISOString();
+  const info = getDb()
+    .prepare("INSERT INTO tasks (text, done, createdAt) VALUES (?, 0, ?)")
+    .run(text, createdAt);
+  return { id: Number(info.lastInsertRowid), text, done: false, createdAt };
+}
+
+export function removeTask(id: number): Task | undefined {
+  const row = getDb()
+    .prepare("SELECT id, text, done, createdAt FROM tasks WHERE id = ?")
+    .get(id) as unknown as TaskRow | undefined;
+
+  if (!row) {
+    return undefined;
+  }
+
+  getDb().prepare("DELETE FROM tasks WHERE id = ?").run(id);
+  return rowToTask(row);
 }

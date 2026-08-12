@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+process.removeAllListeners("warning");
+process.on("warning", (warning) => {
+  if (warning.name === "ExperimentalWarning" && /SQLite/i.test(warning.message)) {
+    return;
+  }
+  console.warn(warning);
+});
+
 import { Command } from "commander";
 import { addItem } from "./commands/add";
 import { removeItem } from "./commands/remove";
