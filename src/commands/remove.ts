@@ -1,16 +1,13 @@
-import { loadTasks, saveTasks } from "../store";
+import { removeTask } from "../store";
 
 export function removeItem(id: number): void {
-  const tasks = loadTasks();
-  const index = tasks.findIndex((task) => task.id === id);
+  const removed = removeTask(id);
 
-  if (index === -1) {
+  if (!removed) {
     console.error(`No task found with id #${id}`);
     process.exitCode = 1;
     return;
   }
 
-  const [removed] = tasks.splice(index, 1);
-  saveTasks(tasks);
   console.log(`Removed task #${removed.id}: ${removed.text}`);
 }
