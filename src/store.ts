@@ -89,3 +89,17 @@ export function removeTask(id: number): Task | undefined {
   getDb().prepare("DELETE FROM tasks WHERE id = ?").run(id);
   return rowToTask(row);
 }
+
+export function toggleTask(id: number): Task | undefined {
+  const row = getDb()
+    .prepare("SELECT id, text, done, createdAt FROM tasks WHERE id = ?")
+    .get(id) as unknown as TaskRow | undefined;
+
+  if (!row) {
+    return undefined;
+  }
+
+  const nextDone = row.done ? 0 : 1;
+  getDb().prepare("UPDATE tasks SET done = ? WHERE id = ?").run(nextDone, id);
+  return { ...rowToTask(row), done: !row.done };
+}

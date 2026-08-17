@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "ts-node src/index.ts",
+    "dev": "tsx src/index.ts",
     "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
@@ -22,16 +22,21 @@
   ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "engines": {
     "node": ">=22.5.0"
   },
   "dependencies": {
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "ink": "^7.1.1",
+    "react": "^19.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.1",
-    "ts-node": "^10.9.2",
+    "@types/react": "^19.2.0",
+    "ink-testing-library": "^4.0.0",
+    "ink-text-input": "^6.0.0",
+    "tsx": "^4.23.12",
     "typescript": "^5.7.3",
     "vitest": "^4.1.10"
   }

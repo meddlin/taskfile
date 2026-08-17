@@ -1,4 +1,4 @@
-import { removeTask } from "../store";
+import { removeTask } from "../store.js";
 
 export function removeItem(id: number): void {
   const removed = removeTask(id);

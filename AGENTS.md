@@ -5,9 +5,18 @@
 This repository contains a small TypeScript command-line task manager. `src/index.ts` defines the
 Commander CLI and routes subcommands. Command handlers live in `src/commands/` (`add.ts`, `list.ts`,
 and `remove.ts`), while `src/store.ts` owns the SQLite persistence layer and shared `Task` type.
-Tests are colocated with their subjects as `*.test.ts`. TypeScript builds into the ignored `dist/`
-directory. The CLI stores runtime data outside the repository at `~/.taskfile/tasks.db`; do not
-commit local databases or generated output.
+Tests are colocated with their subjects as `*.test.ts`/`*.test.tsx`. TypeScript builds into the
+ignored `dist/` directory. The CLI stores runtime data outside the repository at
+`~/.taskfile/tasks.db`; do not commit local databases or generated output.
+
+Running `taskfile` with no subcommand launches an interactive TUI (falls back to `--help` output if
+stdin isn't a TTY). The TUI lives in `src/tui/` (`index.tsx` entry, `App.tsx` state/keybindings,
+`TaskList.tsx` and `AddTaskInput.tsx` presentational components) and is built with Ink/React — this
+is why the project is `"type": "module"` with `NodeNext` module resolution (Ink v4+ is ESM-only) and
+why relative imports need explicit `.js` extensions. TUI code calls `store.ts` functions directly
+rather than the `commands/*.ts` wrappers, since those `console.log`/`console.error`, which would
+corrupt Ink's full-screen render. Keybindings: arrows/`j`/`k` to navigate, `space`/`enter` to toggle
+done, `a` to add, `d`/`x` to delete (asks `y`/`n` to confirm), `q`/`Esc` to quit.
 
 ## Build, Test, and Development Commands
 

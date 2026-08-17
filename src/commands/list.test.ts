@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { listItems } from "./list";
-import { addItem } from "./add";
+import { listItems } from "./list.js";
+import { addItem } from "./add.js";
 
 describe("listItems", () => {
   let tempHome: string;

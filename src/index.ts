@@ -9,9 +9,10 @@ process.on("warning", (warning) => {
 });
 
 import { Command } from "commander";
-import { addItem } from "./commands/add";
-import { removeItem } from "./commands/remove";
-import { listItems } from "./commands/list";
+import { addItem } from "./commands/add.js";
+import { removeItem } from "./commands/remove.js";
+import { listItems } from "./commands/list.js";
+import { runTui } from "./tui/index.js";
 
 const program = new Command();
 
@@ -38,4 +39,15 @@ program
     listItems();
   });
 
-program.parse();
+program
+  .command("tui", { isDefault: true, hidden: true })
+  .description("Launch the interactive TUI")
+  .action(async () => {
+    if (!process.stdin.isTTY) {
+      program.help();
+      return;
+    }
+    await runTui();
+  });
+
+await program.parseAsync();

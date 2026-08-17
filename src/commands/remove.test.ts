@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { removeItem } from "./remove";
-import { addItem } from "./add";
-import { loadTasks } from "../store";
+import { removeItem } from "./remove.js";
+import { addItem } from "./add.js";
+import { loadTasks } from "../store.js";
 
 describe("removeItem", () => {
   let tempHome: string;

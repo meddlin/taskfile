@@ -1,4 +1,4 @@
-import { loadTasks } from "../store";
+import { loadTasks } from "../store.js";
 
 export function listItems(): void {
   const tasks = loadTasks();
