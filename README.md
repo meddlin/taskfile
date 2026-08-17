@@ -30,6 +30,11 @@ npm run dev -- list
 npm run dev -- remove 1
 ```
 
+This starts the TUI via the development build.
+```bash
+npm run dev --
+```
+
 **Option 2: build once, run compiled output**
 
 Matches what actually ships:

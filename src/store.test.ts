@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { addTask, loadTasks, removeTask } from "./store";
+import { addTask, loadTasks, removeTask, toggleTask } from "./store.js";
 
 describe("store", () => {
   let tempHome: string;
@@ -56,5 +56,39 @@ describe("store", () => {
 
   it("removeTask returns undefined when the id is unknown", () => {
     expect(removeTask(99)).toBeUndefined();
+  });
+
+  it("toggleTask flips a task from not-done to done", () => {
+    addTask("Buy milk");
+
+    const toggled = toggleTask(1);
+
+    expect(toggled).toMatchObject({ id: 1, done: true });
+    expect(loadTasks()[0].done).toBe(true);
+  });
+
+  it("toggleTask flips a done task back to not-done", () => {
+    addTask("Buy milk");
+    toggleTask(1);
+
+    const toggled = toggleTask(1);
+
+    expect(toggled).toMatchObject({ id: 1, done: false });
+    expect(loadTasks()[0].done).toBe(false);
+  });
+
+  it("toggleTask returns undefined when the id is unknown", () => {
+    expect(toggleTask(99)).toBeUndefined();
+  });
+
+  it("toggleTask does not affect other tasks", () => {
+    addTask("Buy milk");
+    addTask("Walk the dog");
+
+    toggleTask(1);
+    const tasks = loadTasks();
+
+    expect(tasks.find((t) => t.id === 1)?.done).toBe(true);
+    expect(tasks.find((t) => t.id === 2)?.done).toBe(false);
   });
 });
