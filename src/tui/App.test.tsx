@@ -5,6 +5,7 @@ import * as path from "path";
 import { render } from "ink-testing-library";
 import { App } from "./App.js";
 import { addTask, loadTasks, toggleTask } from "../store.js";
+import { loadSettings } from "../settings.js";
 
 function delay(ms = 50): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -204,6 +205,55 @@ describe("App", () => {
     await delay();
 
     expect(lastFrame()).not.toContain("Complete all sub-items before completing this item.");
+
+    unmount();
+  });
+
+  it("shows TODOs highlighted in the sidebar by default and switches to Settings with Tab", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    expect(lastFrame()).toContain("TODOs");
+    expect(lastFrame()).toContain("Settings");
+    expect(lastFrame()).not.toContain("Window width");
+
+    stdin.write("\t");
+    await delay();
+
+    expect(lastFrame()).toContain("Window width");
+    expect(lastFrame()).toContain("Window height");
+
+    unmount();
+  });
+
+  it("does not switch pages with Tab while add-mode text entry is active", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("a");
+    await delay();
+    stdin.write("\t");
+    await delay();
+
+    expect(lastFrame()).not.toContain("Window width");
+
+    unmount();
+  });
+
+  it("saves an edited window width from the Settings page and applies it live", async () => {
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\t"); // switch to Settings
+    await delay();
+    stdin.write("\r"); // start editing width
+    await delay();
+    stdin.write("100");
+    await delay();
+    stdin.write("\r"); // submit
+    await delay();
+
+    expect(loadSettings().width).toBe(100);
 
     unmount();
   });
