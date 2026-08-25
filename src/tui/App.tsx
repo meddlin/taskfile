@@ -1,8 +1,9 @@
 import { useState, type ReactElement } from "react";
-import { Box, Text, useApp, useInput } from "ink";
+import { Text, useApp, useInput } from "ink";
 import { addTask, loadTasks, removeTask, toggleTask, type Task } from "../store.js";
 import { TaskList } from "./TaskList.js";
 import { AddTaskInput } from "./AddTaskInput.js";
+import { Frame } from "./Frame.js";
 
 type Mode = "list" | "add" | "confirm-delete";
 
@@ -95,7 +96,7 @@ export function App(): ReactElement {
   const pendingDeleteTask = tasks.find((task) => task.id === pendingDeleteId);
 
   return (
-    <Box flexDirection="column">
+    <Frame>
       <TaskList tasks={tasks} selectedIndex={selectedIndex} />
       {mode === "confirm-delete" && pendingDeleteTask && (
         <Text>
@@ -114,6 +115,6 @@ export function App(): ReactElement {
       {mode === "list" && (
         <Text dimColor>↑/k ↓/j move · space/enter toggle · a add · d delete · q quit</Text>
       )}
-    </Box>
+    </Frame>
   );
 }
