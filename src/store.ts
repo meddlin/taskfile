@@ -7,6 +7,7 @@ export interface Task {
   id: number;
   text: string;
   done: boolean;
+  parentId: number | null;
   createdAt: string;
 }
 
@@ -14,8 +15,19 @@ interface TaskRow {
   id: number;
   text: string;
   done: number;
+  parentId: number | null;
   createdAt: string;
 }
+
+export type ToggleResult =
+  | { status: "ok"; task: Task }
+  | { status: "not-found" }
+  | { status: "blocked"; reason: string };
+
+export type RemoveResult =
+  | { status: "ok"; task: Task }
+  | { status: "not-found" }
+  | { status: "blocked"; reason: string };
 
 let db: DatabaseSync | undefined;
 let dbPath: string | undefined;
@@ -29,7 +41,25 @@ function getStoreFile(): string {
 }
 
 function rowToTask(row: TaskRow): Task {
-  return { id: row.id, text: row.text, done: !!row.done, createdAt: row.createdAt };
+  return { id: row.id, text: row.text, done: !!row.done, parentId: row.parentId, createdAt: row.createdAt };
+}
+
+function ensureSchema(database: DatabaseSync): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      done INTEGER NOT NULL DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      parentId INTEGER REFERENCES tasks(id)
+    )
+  `);
+
+  const columns = database.prepare("PRAGMA table_info(tasks)").all() as unknown as { name: string }[];
+  const hasParentId = columns.some((column) => column.name === "parentId");
+  if (!hasParentId) {
+    database.exec("ALTER TABLE tasks ADD COLUMN parentId INTEGER REFERENCES tasks(id)");
+  }
 }
 
 function getDb(): DatabaseSync {
@@ -49,14 +79,7 @@ function getDb(): DatabaseSync {
   }
 
   db = new DatabaseSync(currentPath);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      text TEXT NOT NULL,
-      done INTEGER NOT NULL DEFAULT 0,
-      createdAt TEXT NOT NULL
-    )
-  `);
+  ensureSchema(db);
   dbPath = currentPath;
 
   return db;
@@ -64,42 +87,81 @@ function getDb(): DatabaseSync {
 
 export function loadTasks(): Task[] {
   const rows = getDb()
-    .prepare("SELECT id, text, done, createdAt FROM tasks ORDER BY id")
+    .prepare(
+      `SELECT id, text, done, parentId, createdAt FROM tasks
+       ORDER BY COALESCE(parentId, id), parentId IS NOT NULL, id`,
+    )
     .all() as unknown as TaskRow[];
   return rows.map(rowToTask);
 }
 
-export function addTask(text: string): Task {
+export function addTask(text: string, parentId: number | null = null): Task {
   const createdAt = new Date().toISOString();
   const info = getDb()
-    .prepare("INSERT INTO tasks (text, done, createdAt) VALUES (?, 0, ?)")
-    .run(text, createdAt);
-  return { id: Number(info.lastInsertRowid), text, done: false, createdAt };
+    .prepare("INSERT INTO tasks (text, done, createdAt, parentId) VALUES (?, 0, ?, ?)")
+    .run(text, createdAt, parentId);
+  return { id: Number(info.lastInsertRowid), text, done: false, parentId, createdAt };
 }
 
-export function removeTask(id: number): Task | undefined {
+export function removeTask(id: number): RemoveResult {
   const row = getDb()
-    .prepare("SELECT id, text, done, createdAt FROM tasks WHERE id = ?")
+    .prepare("SELECT id, text, done, parentId, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow | undefined;
 
   if (!row) {
-    return undefined;
+    return { status: "not-found" };
+  }
+
+  if (row.parentId === null) {
+    const { count } = getDb()
+      .prepare("SELECT COUNT(*) AS count FROM tasks WHERE parentId = ?")
+      .get(id) as unknown as { count: number };
+    if (count > 0) {
+      return { status: "blocked", reason: "Delete all sub-items first." };
+    }
   }
 
   getDb().prepare("DELETE FROM tasks WHERE id = ?").run(id);
-  return rowToTask(row);
+  return { status: "ok", task: rowToTask(row) };
 }
 
-export function toggleTask(id: number): Task | undefined {
+export function toggleTask(id: number): ToggleResult {
   const row = getDb()
-    .prepare("SELECT id, text, done, createdAt FROM tasks WHERE id = ?")
+    .prepare("SELECT id, text, done, parentId, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow | undefined;
 
   if (!row) {
-    return undefined;
+    return { status: "not-found" };
   }
 
-  const nextDone = row.done ? 0 : 1;
-  getDb().prepare("UPDATE tasks SET done = ? WHERE id = ?").run(nextDone, id);
-  return { ...rowToTask(row), done: !row.done };
+  const nextDone = !row.done;
+
+  if (nextDone && row.parentId === null) {
+    const { count } = getDb()
+      .prepare("SELECT COUNT(*) AS count FROM tasks WHERE parentId = ? AND done = 0")
+      .get(id) as unknown as { count: number };
+    if (count > 0) {
+      return { status: "blocked", reason: "Complete all sub-items before completing this item." };
+    }
+  }
+
+  getDb()
+    .prepare("UPDATE tasks SET done = ? WHERE id = ?")
+    .run(nextDone ? 1 : 0, id);
+
+  if (!nextDone && row.parentId !== null) {
+    getDb().prepare("UPDATE tasks SET done = 0 WHERE id = ? AND done = 1").run(row.parentId);
+  }
+
+  const updated = getDb()
+    .prepare("SELECT id, text, done, parentId, createdAt FROM tasks WHERE id = ?")
+    .get(id) as unknown as TaskRow;
+  return { status: "ok", task: rowToTask(updated) };
+}
+
+export function hasSubItems(id: number): boolean {
+  const { count } = getDb()
+    .prepare("SELECT COUNT(*) AS count FROM tasks WHERE parentId = ?")
+    .get(id) as unknown as { count: number };
+  return count > 0;
 }

@@ -1,13 +1,19 @@
 import { removeTask } from "../store.js";
 
 export function removeItem(id: number): void {
-  const removed = removeTask(id);
+  const result = removeTask(id);
 
-  if (!removed) {
+  if (result.status === "not-found") {
     console.error(`No task found with id #${id}`);
     process.exitCode = 1;
     return;
   }
 
-  console.log(`Removed task #${removed.id}: ${removed.text}`);
+  if (result.status === "blocked") {
+    console.error(result.reason);
+    process.exitCode = 1;
+    return;
+  }
+
+  console.log(`Removed task #${result.task.id}: ${result.task.text}`);
 }
