@@ -6,6 +6,9 @@ import { saveSettings, type Settings } from "../settings.js";
 type Field = "width" | "height";
 type Mode = "view" | "edit";
 
+const VIEW_HINT = "↑/k ↓/j select · enter edit · Tab TODOs · q quit";
+const EDIT_HINT = "enter save · esc cancel";
+
 const FIELDS: { key: Field; label: string }[] = [
   { key: "width", label: "Window width" },
   { key: "height", label: "Window height" },
@@ -17,12 +20,14 @@ export function SettingsPage({
   onSettingsChange,
   setMessage,
   onNavLockChange,
+  onHintChange,
 }: {
   active: boolean;
   settings: Settings;
   onSettingsChange: (next: Settings) => void;
   setMessage: (message: string | undefined) => void;
   onNavLockChange: (locked: boolean) => void;
+  onHintChange: (hint: string) => void;
 }): ReactElement {
   const { exit } = useApp();
   const [selectedField, setSelectedField] = useState(0);
@@ -31,7 +36,10 @@ export function SettingsPage({
 
   useEffect(() => {
     onNavLockChange(mode === "edit");
-  }, [mode, onNavLockChange]);
+    if (active) {
+      onHintChange(mode === "view" ? VIEW_HINT : EDIT_HINT);
+    }
+  }, [mode, active, onNavLockChange, onHintChange]);
 
   useInput(
     (input, key) => {
@@ -112,9 +120,6 @@ export function SettingsPage({
           </Box>
         );
       })}
-      <Text> </Text>
-      {mode === "view" && <Text dimColor>↑/k ↓/j select · enter edit · Tab TODOs · q quit</Text>}
-      {mode === "edit" && <Text dimColor>enter save · esc cancel</Text>}
     </Box>
   );
 }

@@ -12,18 +12,22 @@ const SIDEBAR_WIDTH = 16;
 export function Frame({
   children,
   message,
+  hint,
   width,
   height,
   activePage,
 }: {
   children: ReactNode;
   message?: string;
+  hint?: string;
   width: number;
   height: number;
   activePage: Page;
 }): ReactElement {
   const innerWidth = width - BORDER_WIDTH * 2 - PADDING_X * 2;
   const contentWidth = innerWidth - SIDEBAR_WIDTH;
+  const contentPaddingLeft = 1;
+  const messageAreaWidth = contentWidth - contentPaddingLeft;
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={theme.accent} width={width} height={height} paddingX={PADDING_X}>
@@ -33,11 +37,13 @@ export function Frame({
       <Divider width={innerWidth} />
       <Box flexDirection="row" flexGrow={1}>
         <Sidebar width={SIDEBAR_WIDTH} activePage={activePage} />
-        <Box flexDirection="column" width={contentWidth} paddingLeft={1}>
-          <MessageArea message={message} />
+        <Box flexDirection="column" width={contentWidth} paddingLeft={contentPaddingLeft}>
+          <MessageArea message={message} width={messageAreaWidth} />
           {children}
         </Box>
       </Box>
+      <Divider width={innerWidth} />
+      <Text dimColor>{hint || " "}</Text>
     </Box>
   );
 }

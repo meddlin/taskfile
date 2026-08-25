@@ -6,6 +6,8 @@ import { AddTaskInput } from "./AddTaskInput.js";
 
 type Mode = "list" | "add" | "confirm-delete";
 
+const LIST_HINT = "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · d delete · Tab settings · q quit";
+
 function resolveGroupParentId(tasks: Task[], index: number): number | undefined {
   const task = tasks[index];
   if (!task) return undefined;
@@ -16,10 +18,12 @@ export function TodosPage({
   active,
   setMessage,
   onNavLockChange,
+  onHintChange,
 }: {
   active: boolean;
   setMessage: (message: string | undefined) => void;
   onNavLockChange: (locked: boolean) => void;
+  onHintChange: (hint: string) => void;
 }): ReactElement {
   const { exit } = useApp();
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
@@ -30,7 +34,10 @@ export function TodosPage({
 
   useEffect(() => {
     onNavLockChange(mode === "add");
-  }, [mode, onNavLockChange]);
+    if (active) {
+      onHintChange(mode === "list" ? LIST_HINT : "");
+    }
+  }, [mode, active, onNavLockChange, onHintChange]);
 
   function refresh(): void {
     setTasks(loadTasks());
@@ -152,9 +159,6 @@ export function TodosPage({
             setMode("list");
           }}
         />
-      )}
-      {mode === "list" && (
-        <Text dimColor>↑/k ↓/j move · space/enter toggle · a add · s add sub-item · d delete · Tab settings · q quit</Text>
       )}
     </>
   );

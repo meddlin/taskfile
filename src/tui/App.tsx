@@ -11,6 +11,7 @@ export function App(): ReactElement {
   const [page, setPage] = useState<Page>("todos");
   const [navLocked, setNavLocked] = useState(false);
   const [message, setMessage] = useState<string | undefined>(undefined);
+  const [hint, setHint] = useState<string>("");
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
 
   useInput((input, key) => {
@@ -26,14 +27,20 @@ export function App(): ReactElement {
   });
 
   return (
-    <Frame message={message} width={settings.width} height={settings.height} activePage={page}>
-      <TodosPage active={page === "todos"} setMessage={setMessage} onNavLockChange={setNavLocked} />
+    <Frame message={message} hint={hint} width={settings.width} height={settings.height} activePage={page}>
+      <TodosPage
+        active={page === "todos"}
+        setMessage={setMessage}
+        onNavLockChange={setNavLocked}
+        onHintChange={setHint}
+      />
       <SettingsPage
         active={page === "settings"}
         settings={settings}
         onSettingsChange={setSettings}
         setMessage={setMessage}
         onNavLockChange={setNavLocked}
+        onHintChange={setHint}
       />
     </Frame>
   );
