@@ -1,12 +1,15 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { Text, useApp, useInput } from "ink";
-import { addTask, hasSubItems, loadTasks, removeTask, toggleTask, type Task } from "../store.js";
+import { addTask, hasSubItems, loadTasks, removeTask, toggleTask, updateTask, type Task } from "../store.js";
 import { TaskList } from "./TaskList.js";
 import { AddTaskInput } from "./AddTaskInput.js";
+import { EditTaskModal, type EditFocus } from "./EditTaskModal.js";
 
-type Mode = "list" | "add" | "confirm-delete";
+type Mode = "list" | "add" | "confirm-delete" | "edit";
 
-const LIST_HINT = "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · d delete · Tab settings · q quit";
+const LIST_HINT =
+  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · Tab settings · q quit";
+const EDIT_HINT = "tab cycle · enter save · esc cancel";
 
 function resolveGroupParentId(tasks: Task[], index: number): number | undefined {
   const task = tasks[index];
@@ -31,16 +34,41 @@ export function TodosPage({
   const [mode, setMode] = useState<Mode>("list");
   const [pendingDeleteId, setPendingDeleteId] = useState<number | undefined>(undefined);
   const [addParentId, setAddParentId] = useState<number | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<number | undefined>(undefined);
+  const [editValue, setEditValue] = useState("");
+  const [editFocus, setEditFocus] = useState<EditFocus>("input");
 
   useEffect(() => {
-    onNavLockChange(mode === "add");
+    onNavLockChange(mode === "add" || mode === "edit");
     if (active) {
-      onHintChange(mode === "list" ? LIST_HINT : "");
+      onHintChange(mode === "list" ? LIST_HINT : mode === "edit" ? EDIT_HINT : "");
     }
   }, [mode, active, onNavLockChange, onHintChange]);
 
   function refresh(): void {
     setTasks(loadTasks());
+  }
+
+  function commitEdit(): void {
+    if (editingTaskId === undefined) {
+      setMode("list");
+      return;
+    }
+    const result = updateTask(editingTaskId, editValue);
+    if (result.status === "blocked") {
+      setMessage(result.reason);
+      return;
+    }
+    if (result.status === "ok") {
+      refresh();
+    }
+    setEditingTaskId(undefined);
+    setMode("list");
+  }
+
+  function cancelEdit(): void {
+    setEditingTaskId(undefined);
+    setMode("list");
   }
 
   function clampSelection(nextTasks: Task[], index: number): number {
@@ -55,6 +83,34 @@ export function TodosPage({
       if (mode === "add") {
         if (key.escape) {
           setMode("list");
+        }
+        return;
+      }
+
+      if (mode === "edit") {
+        if (key.escape) {
+          cancelEdit();
+          return;
+        }
+
+        if (key.tab) {
+          const order: EditFocus[] = ["input", "save", "cancel"];
+          const delta = key.shift ? -1 : 1;
+          const nextIndex = (order.indexOf(editFocus) + delta + order.length) % order.length;
+          setEditFocus(order[nextIndex]!);
+          return;
+        }
+
+        if (editFocus === "input") {
+          return;
+        }
+
+        if (key.return) {
+          if (editFocus === "save") {
+            commitEdit();
+          } else {
+            cancelEdit();
+          }
         }
         return;
       }
@@ -109,6 +165,17 @@ export function TodosPage({
         return;
       }
 
+      if (input === "e") {
+        const task = tasks[selectedIndex];
+        if (task) {
+          setEditingTaskId(task.id);
+          setEditValue(task.text);
+          setEditFocus("input");
+          setMode("edit");
+        }
+        return;
+      }
+
       if (input === "d" || input === "x") {
         const task = tasks[selectedIndex];
         if (task) {
@@ -159,6 +226,9 @@ export function TodosPage({
             setMode("list");
           }}
         />
+      )}
+      {mode === "edit" && (
+        <EditTaskModal value={editValue} onChange={setEditValue} onSubmit={commitEdit} focus={editFocus} />
       )}
     </>
   );
