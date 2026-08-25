@@ -29,6 +29,11 @@ export type RemoveResult =
   | { status: "not-found" }
   | { status: "blocked"; reason: string };
 
+export type UpdateResult =
+  | { status: "ok"; task: Task }
+  | { status: "not-found" }
+  | { status: "blocked"; reason: string };
+
 let db: DatabaseSync | undefined;
 let dbPath: string | undefined;
 
@@ -157,6 +162,25 @@ export function toggleTask(id: number): ToggleResult {
     .prepare("SELECT id, text, done, parentId, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow;
   return { status: "ok", task: rowToTask(updated) };
+}
+
+export function updateTask(id: number, text: string): UpdateResult {
+  const row = getDb()
+    .prepare("SELECT id, text, done, parentId, createdAt FROM tasks WHERE id = ?")
+    .get(id) as unknown as TaskRow | undefined;
+
+  if (!row) {
+    return { status: "not-found" };
+  }
+
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return { status: "blocked", reason: "Task text cannot be empty." };
+  }
+
+  getDb().prepare("UPDATE tasks SET text = ? WHERE id = ?").run(trimmed, id);
+
+  return { status: "ok", task: { ...rowToTask(row), text: trimmed } };
 }
 
 export function hasSubItems(id: number): boolean {

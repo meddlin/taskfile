@@ -4,6 +4,7 @@
 
 - [x] Create todo items
 - [x] Mark todo items as done
+- [] Edit a todo item
 - [x] Remove todo items
 
 - [x] Support for "sub-items"

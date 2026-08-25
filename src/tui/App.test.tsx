@@ -11,6 +11,17 @@ function delay(ms = 50): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// ink-text-input tracks cursor offset in local state that's only refreshed on
+// re-render, so multiple backspace bytes sent in a single stdin.write() are
+// processed against the same stale closure. Sending one at a time (like real
+// keystrokes) lets React re-render between each.
+async function backspace(stdin: { write: (data: string) => void }, count: number): Promise<void> {
+  for (let i = 0; i < count; i++) {
+    stdin.write("\x7F");
+    await delay();
+  }
+}
+
 describe("App", () => {
   let tempHome: string;
   let originalHome: string | undefined;
@@ -236,6 +247,119 @@ describe("App", () => {
     await delay();
 
     expect(lastFrame()).not.toContain("Window width");
+
+    unmount();
+  });
+
+  it("edits the selected task's text and saves with Enter", async () => {
+    addTask("Buy milk");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("e");
+    await delay();
+    await backspace(stdin, 4); // remove "milk"
+    stdin.write("eggs");
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(loadTasks()[0]?.text).toBe("Buy eggs");
+
+    unmount();
+  });
+
+  it("edits the selected task's text and saves via Tab to the Save button", async () => {
+    addTask("Buy milk");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("e");
+    await delay();
+    await backspace(stdin, 4);
+    stdin.write("eggs");
+    await delay();
+    stdin.write("\t"); // input -> save
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(loadTasks()[0]?.text).toBe("Buy eggs");
+
+    unmount();
+  });
+
+  it("discards edits when Escape is pressed", async () => {
+    addTask("Buy milk");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("e");
+    await delay();
+    stdin.write("zzz");
+    await delay();
+    stdin.write("\x1B");
+    await delay();
+
+    expect(loadTasks()[0]?.text).toBe("Buy milk");
+
+    unmount();
+  });
+
+  it("discards edits when tabbing to Cancel and pressing Enter", async () => {
+    addTask("Buy milk");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("e");
+    await delay();
+    stdin.write("zzz");
+    await delay();
+    stdin.write("\t"); // input -> save
+    await delay();
+    stdin.write("\t"); // save -> cancel
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(loadTasks()[0]?.text).toBe("Buy milk");
+
+    unmount();
+  });
+
+  it("does not switch pages with Tab while the edit modal is open", async () => {
+    addTask("Buy milk");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("e");
+    await delay();
+    stdin.write("\t");
+    await delay();
+
+    expect(lastFrame()).not.toContain("Window width");
+
+    unmount();
+  });
+
+  it("blocks saving an edit that clears all the task's text", async () => {
+    addTask("Buy milk");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("e");
+    await delay();
+    await backspace(stdin, 8); // remove "Buy milk"
+    stdin.write("\r");
+    await delay();
+
+    expect(loadTasks()[0]?.text).toBe("Buy milk");
 
     unmount();
   });
