@@ -12,9 +12,13 @@ export function TaskList({ tasks, selectedIndex }: { tasks: Task[]; selectedInde
       {tasks.map((task, index) => {
         const marker = task.done ? "[x]" : "[ ]";
         const selected = index === selectedIndex;
+        const label =
+          task.parentId !== null
+            ? `  - ${marker} #${task.id} ${task.text}`
+            : `${marker} #${task.id} ${task.text}`;
         return (
           <Text key={task.id} inverse={selected}>
-            {marker} #{task.id} {task.text}
+            {label}
           </Text>
         );
       })}

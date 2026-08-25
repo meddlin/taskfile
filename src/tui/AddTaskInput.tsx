@@ -2,12 +2,18 @@ import { useState, type ReactElement } from "react";
 import { Box, Text } from "ink";
 import TextInput from "ink-text-input";
 
-export function AddTaskInput({ onSubmit }: { onSubmit: (text: string) => void }): ReactElement {
+export function AddTaskInput({
+  onSubmit,
+  label = "New task: ",
+}: {
+  onSubmit: (text: string) => void;
+  label?: string;
+}): ReactElement {
   const [value, setValue] = useState("");
 
   return (
     <Box>
-      <Text>New task: </Text>
+      <Text>{label}</Text>
       <TextInput
         value={value}
         onChange={setValue}

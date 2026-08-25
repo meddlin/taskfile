@@ -4,7 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import { removeItem } from "./remove.js";
 import { addItem } from "./add.js";
-import { loadTasks } from "../store.js";
+import { addTask, loadTasks } from "../store.js";
 
 describe("removeItem", () => {
   let tempHome: string;
@@ -61,5 +61,20 @@ describe("removeItem", () => {
 
     const tasks = loadTasks();
     expect(tasks).toHaveLength(1);
+  });
+
+  it("prints an error and sets a non-zero exit code when the item still has sub-items", () => {
+    addItem("Plan trip");
+    addTask("Book flights", 1);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    process.exitCode = 0;
+
+    removeItem(1);
+
+    expect(errorSpy).toHaveBeenCalledWith("Delete all sub-items first.");
+    expect(process.exitCode).toBe(1);
+    expect(loadTasks()).toHaveLength(2);
+
+    process.exitCode = 0;
   });
 });
