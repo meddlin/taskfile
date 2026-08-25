@@ -18,4 +18,4 @@
     - [] Progress Bar
         - [] Show a progress bar for the percent completion across *all* todo items.
     - [x] Settings page
-        - Ability to set default width x height for window
+        - [x] Ability to set default width x height for window
