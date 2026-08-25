@@ -17,7 +17,7 @@ export function TaskList({ tasks, selectedIndex }: { tasks: Task[]; selectedInde
             ? `  - ${marker} #${task.id} ${task.text}`
             : `${marker} #${task.id} ${task.text}`;
         return (
-          <Text key={task.id} inverse={selected}>
+          <Text key={task.id} inverse={selected} strikethrough={task.done}>
             {label}
           </Text>
         );
