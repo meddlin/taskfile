@@ -1,6 +1,15 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { Text, useApp, useInput } from "ink";
-import { addTask, hasSubItems, loadTasks, removeTask, toggleTask, updateTask, type Task } from "../store.js";
+import {
+  addTask,
+  hasSubItems,
+  loadTasks,
+  removeTask,
+  setPriority,
+  toggleTask,
+  updateTask,
+  type Task,
+} from "../store.js";
 import { TaskList } from "./TaskList.js";
 import { AddTaskInput } from "./AddTaskInput.js";
 import { EditTaskModal, type EditFocus } from "./EditTaskModal.js";
@@ -9,7 +18,7 @@ type Mode = "list" | "add" | "confirm-delete" | "edit";
 
 const LIST_HINT =
   "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · Tab settings · q quit";
-const EDIT_HINT = "tab cycle · enter save · esc cancel";
+const EDIT_HINT = "tab cycle · space toggle priority · enter save · esc cancel";
 
 function resolveGroupParentId(tasks: Task[], index: number): number | undefined {
   const task = tasks[index];
@@ -36,6 +45,7 @@ export function TodosPage({
   const [addParentId, setAddParentId] = useState<number | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<number | undefined>(undefined);
   const [editValue, setEditValue] = useState("");
+  const [editPriority, setEditPriority] = useState(false);
   const [editFocus, setEditFocus] = useState<EditFocus>("input");
 
   useEffect(() => {
@@ -60,6 +70,7 @@ export function TodosPage({
       return;
     }
     if (result.status === "ok") {
+      setPriority(editingTaskId, editPriority);
       refresh();
     }
     setEditingTaskId(undefined);
@@ -94,7 +105,7 @@ export function TodosPage({
         }
 
         if (key.tab) {
-          const order: EditFocus[] = ["input", "save", "cancel"];
+          const order: EditFocus[] = ["input", "priority", "save", "cancel"];
           const delta = key.shift ? -1 : 1;
           const nextIndex = (order.indexOf(editFocus) + delta + order.length) % order.length;
           setEditFocus(order[nextIndex]!);
@@ -102,6 +113,13 @@ export function TodosPage({
         }
 
         if (editFocus === "input") {
+          return;
+        }
+
+        if (editFocus === "priority") {
+          if (input === " " || key.return) {
+            setEditPriority((p) => !p);
+          }
           return;
         }
 
@@ -170,6 +188,7 @@ export function TodosPage({
         if (task) {
           setEditingTaskId(task.id);
           setEditValue(task.text);
+          setEditPriority(task.priority);
           setEditFocus("input");
           setMode("edit");
         }
@@ -228,7 +247,13 @@ export function TodosPage({
         />
       )}
       {mode === "edit" && (
-        <EditTaskModal value={editValue} onChange={setEditValue} onSubmit={commitEdit} focus={editFocus} />
+        <EditTaskModal
+          value={editValue}
+          onChange={setEditValue}
+          onSubmit={commitEdit}
+          focus={editFocus}
+          priority={editPriority}
+        />
       )}
     </>
   );

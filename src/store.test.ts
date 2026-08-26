@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { addTask, hasSubItems, loadTasks, removeTask, toggleTask } from "./store.js";
+import { addTask, hasSubItems, loadTasks, removeTask, setPriority, toggleTask } from "./store.js";
 
 describe("store", () => {
   let tempHome: string;
@@ -209,5 +209,83 @@ describe("store", () => {
 
     expect(hasSubItems(1)).toBe(true);
     expect(hasSubItems(2)).toBe(false);
+  });
+
+  it("addTask defaults priority to false", () => {
+    const task = addTask("Buy milk");
+
+    expect(task.priority).toBe(false);
+  });
+
+  it("setPriority marks a task as priority", () => {
+    addTask("Buy milk");
+
+    const result = setPriority(1, true);
+
+    expect(result).toMatchObject({ status: "ok", task: { id: 1, priority: true } });
+    expect(loadTasks()[0].priority).toBe(true);
+  });
+
+  it("setPriority returns not-found when the id is unknown", () => {
+    expect(setPriority(99, true)).toEqual({ status: "not-found" });
+  });
+
+  it("setPriority on a main item cascades priority to all its sub-items", () => {
+    addTask("Main");
+    addTask("Sub 1", 1);
+    addTask("Sub 2", 1);
+
+    setPriority(1, true);
+    const tasks = loadTasks();
+
+    expect(tasks.find((t) => t.id === 2)?.priority).toBe(true);
+    expect(tasks.find((t) => t.id === 3)?.priority).toBe(true);
+  });
+
+  it("un-setting priority on a main item cascades the un-set to its sub-items", () => {
+    addTask("Main");
+    addTask("Sub", 1);
+    setPriority(1, true);
+
+    setPriority(1, false);
+    const tasks = loadTasks();
+
+    expect(tasks.find((t) => t.id === 1)?.priority).toBe(false);
+    expect(tasks.find((t) => t.id === 2)?.priority).toBe(false);
+  });
+
+  it("setPriority on a sub-item does not cascade to its siblings or parent", () => {
+    addTask("Main");
+    addTask("Sub 1", 1);
+    addTask("Sub 2", 1);
+
+    setPriority(2, true);
+    const tasks = loadTasks();
+
+    expect(tasks.find((t) => t.id === 1)?.priority).toBe(false);
+    expect(tasks.find((t) => t.id === 2)?.priority).toBe(true);
+    expect(tasks.find((t) => t.id === 3)?.priority).toBe(false);
+  });
+
+  it("loadTasks sorts a priority main item's whole group above a non-priority group", () => {
+    addTask("Main A"); // id 1
+    addTask("Main B"); // id 2
+    addTask("A sub", 1); // id 3
+    addTask("B sub", 2); // id 4
+
+    setPriority(2, true); // mark Main B (and its sub) priority
+
+    expect(loadTasks().map((t) => t.id)).toEqual([2, 4, 1, 3]);
+  });
+
+  it("loadTasks reorders a directly-prioritized sub-item within its own group only", () => {
+    addTask("Main A"); // id 1
+    addTask("Main B"); // id 2
+    addTask("A sub 1", 1); // id 3
+    addTask("A sub 2", 1); // id 4
+
+    setPriority(4, true); // mark only "A sub 2" priority, not its parent
+
+    expect(loadTasks().map((t) => t.id)).toEqual([1, 4, 3, 2]);
   });
 });

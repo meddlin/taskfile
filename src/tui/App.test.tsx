@@ -281,7 +281,9 @@ describe("App", () => {
     await backspace(stdin, 4);
     stdin.write("eggs");
     await delay();
-    stdin.write("\t"); // input -> save
+    stdin.write("\t"); // input -> priority
+    await delay();
+    stdin.write("\t"); // priority -> save
     await delay();
     stdin.write("\r");
     await delay();
@@ -319,7 +321,9 @@ describe("App", () => {
     await delay();
     stdin.write("zzz");
     await delay();
-    stdin.write("\t"); // input -> save
+    stdin.write("\t"); // input -> priority
+    await delay();
+    stdin.write("\t"); // priority -> save
     await delay();
     stdin.write("\t"); // save -> cancel
     await delay();
@@ -327,6 +331,28 @@ describe("App", () => {
     await delay();
 
     expect(loadTasks()[0]?.text).toBe("Buy milk");
+
+    unmount();
+  });
+
+  it("toggles the priority flag from the edit modal and saves it", async () => {
+    addTask("Buy milk");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("e");
+    await delay();
+    stdin.write("\t"); // input -> priority
+    await delay();
+    stdin.write(" "); // toggle priority on
+    await delay();
+    stdin.write("\t"); // priority -> save
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(loadTasks()[0]?.priority).toBe(true);
 
     unmount();
   });
