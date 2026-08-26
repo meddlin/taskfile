@@ -12,7 +12,7 @@ Core Features
 Extra Productivity Features
 
 - [x] Support for "sub-items"
-- [] Support for different lists of todos
+- [x] Support for different lists of todos
 - [] Support for viewing "daily snapshots" of todo lists
 - [x] Support for priority todo items
     - [x] Show a yellow asterisk (*) in front of them

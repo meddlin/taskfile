@@ -5,11 +5,13 @@ import TextInput from "ink-text-input";
 export function AddTaskInput({
   onSubmit,
   label = "New task: ",
+  initialValue = "",
 }: {
   onSubmit: (text: string) => void;
   label?: string;
+  initialValue?: string;
 }): ReactElement {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initialValue);
 
   return (
     <Box>

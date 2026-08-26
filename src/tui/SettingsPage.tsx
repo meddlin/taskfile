@@ -7,7 +7,7 @@ type Field = "width" | "height" | "progressAnimation";
 type FieldType = "number" | "boolean";
 type Mode = "view" | "edit";
 
-const VIEW_HINT = "↑/k ↓/j select · enter edit · space toggle · Tab TODOs · q quit";
+const VIEW_HINT = "↑/k ↓/j select · enter edit · space toggle · Tab lists · Ctrl+N new list · q quit";
 const EDIT_HINT = "enter save · esc cancel";
 
 const FIELDS: { key: Field; label: string; type: FieldType }[] = [

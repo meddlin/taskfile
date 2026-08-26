@@ -4,7 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import { render } from "ink-testing-library";
 import { App } from "./App.js";
-import { addTask, loadTasks, toggleTask } from "../store.js";
+import { addTask, getDefaultListId, loadLists, loadTasks, toggleTask } from "../store.js";
 import { loadSettings } from "../settings.js";
 
 function delay(ms = 50): Promise<void> {
@@ -38,8 +38,8 @@ describe("App", () => {
   });
 
   it("toggles the selected task's done state with space", async () => {
-    addTask("Buy milk");
-    addTask("Walk the dog");
+    addTask(getDefaultListId(), "Buy milk");
+    addTask(getDefaultListId(), "Walk the dog");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -49,7 +49,7 @@ describe("App", () => {
     stdin.write(" ");
     await delay();
 
-    const tasks = loadTasks();
+    const tasks = loadTasks(getDefaultListId());
     expect(tasks.find((t) => t.text === "Walk the dog")?.done).toBe(true);
     expect(tasks.find((t) => t.text === "Buy milk")?.done).toBe(false);
 
@@ -57,8 +57,8 @@ describe("App", () => {
   });
 
   it("updates the progress bar live as tasks are toggled done", async () => {
-    addTask("Buy milk");
-    addTask("Walk the dog");
+    addTask(getDefaultListId(), "Buy milk");
+    addTask(getDefaultListId(), "Walk the dog");
 
     const { stdin, lastFrame, unmount } = render(<App />);
     await delay();
@@ -74,7 +74,7 @@ describe("App", () => {
   });
 
   it("removes the selected task after confirming with y", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -84,13 +84,13 @@ describe("App", () => {
     stdin.write("y");
     await delay();
 
-    expect(loadTasks()).toHaveLength(0);
+    expect(loadTasks(getDefaultListId())).toHaveLength(0);
 
     unmount();
   });
 
   it("does not remove the selected task when the delete is cancelled", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -100,7 +100,7 @@ describe("App", () => {
     stdin.write("n");
     await delay();
 
-    expect(loadTasks()).toHaveLength(1);
+    expect(loadTasks(getDefaultListId())).toHaveLength(1);
 
     unmount();
   });
@@ -116,7 +116,7 @@ describe("App", () => {
     stdin.write("\r");
     await delay();
 
-    const tasks = loadTasks();
+    const tasks = loadTasks(getDefaultListId());
     expect(tasks).toHaveLength(1);
     expect(tasks[0].text).toBe("Write plan doc");
 
@@ -124,7 +124,7 @@ describe("App", () => {
   });
 
   it("adds a sub-item under the selected main item with s", async () => {
-    addTask("Plan trip");
+    addTask(getDefaultListId(), "Plan trip");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -136,7 +136,7 @@ describe("App", () => {
     stdin.write("\r");
     await delay();
 
-    const tasks = loadTasks();
+    const tasks = loadTasks(getDefaultListId());
     const subItem = tasks.find((t) => t.text === "Book flights");
     expect(subItem?.parentId).toBe(1);
 
@@ -144,8 +144,8 @@ describe("App", () => {
   });
 
   it("adds a sibling sub-item when s is pressed with a sub-item selected", async () => {
-    addTask("Plan trip");
-    addTask("Book flights", 1);
+    addTask(getDefaultListId(), "Plan trip");
+    addTask(getDefaultListId(), "Book flights", 1);
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -159,7 +159,7 @@ describe("App", () => {
     stdin.write("\r");
     await delay();
 
-    const tasks = loadTasks();
+    const tasks = loadTasks(getDefaultListId());
     const sibling = tasks.find((t) => t.text === "Book hotel");
     expect(sibling?.parentId).toBe(1);
 
@@ -167,8 +167,8 @@ describe("App", () => {
   });
 
   it("blocks completing a main item with an incomplete sub-item and shows a message", async () => {
-    addTask("Plan trip");
-    addTask("Book flights", 1);
+    addTask(getDefaultListId(), "Plan trip");
+    addTask(getDefaultListId(), "Book flights", 1);
 
     const { stdin, lastFrame, unmount } = render(<App />);
     await delay();
@@ -176,15 +176,15 @@ describe("App", () => {
     stdin.write(" "); // try to complete the main item
     await delay();
 
-    expect(loadTasks().find((t) => t.id === 1)?.done).toBe(false);
+    expect(loadTasks(getDefaultListId()).find((t) => t.id === 1)?.done).toBe(false);
     expect(lastFrame()).toContain("Complete all sub-items before completing this item.");
 
     unmount();
   });
 
   it("reverts an already-complete main item to incomplete when a sub-item is unchecked", async () => {
-    addTask("Plan trip");
-    addTask("Book flights", 1);
+    addTask(getDefaultListId(), "Plan trip");
+    addTask(getDefaultListId(), "Book flights", 1);
     toggleTask(2);
     toggleTask(1);
 
@@ -196,14 +196,14 @@ describe("App", () => {
     stdin.write(" "); // uncheck it
     await delay();
 
-    expect(loadTasks().find((t) => t.id === 1)?.done).toBe(false);
+    expect(loadTasks(getDefaultListId()).find((t) => t.id === 1)?.done).toBe(false);
 
     unmount();
   });
 
   it("blocks deleting a main item with sub-items and shows a message instead of prompting", async () => {
-    addTask("Plan trip");
-    addTask("Book flights", 1);
+    addTask(getDefaultListId(), "Plan trip");
+    addTask(getDefaultListId(), "Book flights", 1);
 
     const { stdin, lastFrame, unmount } = render(<App />);
     await delay();
@@ -213,14 +213,14 @@ describe("App", () => {
 
     expect(lastFrame()).not.toContain("(y/n)");
     expect(lastFrame()).toContain("Delete all sub-items first.");
-    expect(loadTasks()).toHaveLength(2);
+    expect(loadTasks(getDefaultListId())).toHaveLength(2);
 
     unmount();
   });
 
   it("clears a shown message on the next navigation keypress", async () => {
-    addTask("Plan trip");
-    addTask("Book flights", 1);
+    addTask(getDefaultListId(), "Plan trip");
+    addTask(getDefaultListId(), "Book flights", 1);
 
     const { stdin, lastFrame, unmount } = render(<App />);
     await delay();
@@ -237,11 +237,11 @@ describe("App", () => {
     unmount();
   });
 
-  it("shows TODOs highlighted in the sidebar by default and switches to Settings with Tab", async () => {
+  it("shows Todos highlighted in the sidebar by default and switches to Settings with Tab", async () => {
     const { stdin, lastFrame, unmount } = render(<App />);
     await delay();
 
-    expect(lastFrame()).toContain("TODOs");
+    expect(lastFrame()).toContain("Todos");
     expect(lastFrame()).toContain("Settings");
     expect(lastFrame()).not.toContain("Window width");
 
@@ -250,6 +250,97 @@ describe("App", () => {
 
     expect(lastFrame()).toContain("Window width");
     expect(lastFrame()).toContain("Window height");
+
+    unmount();
+  });
+
+  it("cycles backward through pages with Shift+Tab", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[Z"); // Shift+Tab
+    await delay();
+
+    expect(lastFrame()).toContain("Window width");
+
+    unmount();
+  });
+
+  it("creates a new list with Ctrl+N and switches to it", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x0E"); // Ctrl+N
+    await delay();
+    stdin.write("Coding Todos");
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(loadLists().map((l) => l.name)).toEqual(["Todos", "Coding Todos"]);
+    expect(lastFrame()).toContain("Coding Todos");
+    expect(lastFrame()).toContain("No tasks yet. Press a to add one.");
+
+    unmount();
+  });
+
+  it("cancels new-list creation with Escape", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x0E"); // Ctrl+N
+    await delay();
+    stdin.write("Abandoned");
+    await delay();
+    stdin.write("\x1B"); // Escape
+    await delay();
+
+    expect(loadLists().map((l) => l.name)).toEqual(["Todos"]);
+    expect(lastFrame()).not.toContain("Abandoned");
+
+    unmount();
+  });
+
+  it("renames the current list with r and reflects it in the sidebar", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("r");
+    await delay();
+    await backspace(stdin, 5); // remove "Todos"
+    stdin.write("Personal");
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(loadLists()[0]?.name).toBe("Personal");
+    expect(lastFrame()).toContain("Personal");
+    expect(lastFrame()).not.toContain("Todos");
+
+    unmount();
+  });
+
+  it("keeps each list's tasks and selection independent when switching with Tab", async () => {
+    addTask(getDefaultListId(), "Default list task");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x0E"); // Ctrl+N
+    await delay();
+    stdin.write("Second list");
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(lastFrame()).not.toContain("Default list task");
+
+    stdin.write("\t"); // Second list -> Settings
+    await delay();
+    stdin.write("\t"); // Settings -> back to first list (Todos)
+    await delay();
+
+    expect(lastFrame()).toContain("Default list task");
 
     unmount();
   });
@@ -269,7 +360,7 @@ describe("App", () => {
   });
 
   it("edits the selected task's text and saves with Enter", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -282,13 +373,13 @@ describe("App", () => {
     stdin.write("\r");
     await delay();
 
-    expect(loadTasks()[0]?.text).toBe("Buy eggs");
+    expect(loadTasks(getDefaultListId())[0]?.text).toBe("Buy eggs");
 
     unmount();
   });
 
   it("edits the selected task's text and saves via Tab to the Save button", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -305,13 +396,13 @@ describe("App", () => {
     stdin.write("\r");
     await delay();
 
-    expect(loadTasks()[0]?.text).toBe("Buy eggs");
+    expect(loadTasks(getDefaultListId())[0]?.text).toBe("Buy eggs");
 
     unmount();
   });
 
   it("discards edits when Escape is pressed", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -323,13 +414,13 @@ describe("App", () => {
     stdin.write("\x1B");
     await delay();
 
-    expect(loadTasks()[0]?.text).toBe("Buy milk");
+    expect(loadTasks(getDefaultListId())[0]?.text).toBe("Buy milk");
 
     unmount();
   });
 
   it("discards edits when tabbing to Cancel and pressing Enter", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -347,13 +438,13 @@ describe("App", () => {
     stdin.write("\r");
     await delay();
 
-    expect(loadTasks()[0]?.text).toBe("Buy milk");
+    expect(loadTasks(getDefaultListId())[0]?.text).toBe("Buy milk");
 
     unmount();
   });
 
   it("toggles the priority flag from the edit modal and saves it", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -369,13 +460,13 @@ describe("App", () => {
     stdin.write("\r");
     await delay();
 
-    expect(loadTasks()[0]?.priority).toBe(true);
+    expect(loadTasks(getDefaultListId())[0]?.priority).toBe(true);
 
     unmount();
   });
 
   it("does not switch pages with Tab while the edit modal is open", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, lastFrame, unmount } = render(<App />);
     await delay();
@@ -391,7 +482,7 @@ describe("App", () => {
   });
 
   it("blocks saving an edit that clears all the task's text", async () => {
-    addTask("Buy milk");
+    addTask(getDefaultListId(), "Buy milk");
 
     const { stdin, unmount } = render(<App />);
     await delay();
@@ -402,7 +493,7 @@ describe("App", () => {
     stdin.write("\r");
     await delay();
 
-    expect(loadTasks()[0]?.text).toBe("Buy milk");
+    expect(loadTasks(getDefaultListId())[0]?.text).toBe("Buy milk");
 
     unmount();
   });

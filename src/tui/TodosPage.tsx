@@ -6,6 +6,7 @@ import {
   hasSubItems,
   loadTasks,
   removeTask,
+  renameList,
   setPriority,
   toggleTask,
   updateTask,
@@ -15,11 +16,12 @@ import { TaskList } from "./TaskList.js";
 import { AddTaskInput } from "./AddTaskInput.js";
 import { EditTaskModal, type EditFocus } from "./EditTaskModal.js";
 
-type Mode = "list" | "add" | "confirm-delete" | "edit";
+type Mode = "list" | "add" | "confirm-delete" | "edit" | "rename-list";
 
 const LIST_HINT =
-  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · Tab settings · q quit";
+  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · r rename list · Tab switch · Ctrl+N new list · q quit";
 const EDIT_HINT = "tab cycle · space toggle priority · enter save · esc cancel";
+const RENAME_LIST_HINT = "enter save · esc cancel";
 
 function resolveGroupParentId(tasks: Task[], index: number): number | undefined {
   const task = tasks[index];
@@ -29,19 +31,25 @@ function resolveGroupParentId(tasks: Task[], index: number): number | undefined 
 
 export function TodosPage({
   active,
+  listId,
+  listName,
+  onListRenamed,
   setMessage,
   onNavLockChange,
   onHintChange,
   onProgressChange,
 }: {
   active: boolean;
+  listId: number;
+  listName: string;
+  onListRenamed: () => void;
   setMessage: (message: string | undefined) => void;
   onNavLockChange: (locked: boolean) => void;
   onHintChange: (hint: string) => void;
   onProgressChange: (progress: { done: number; total: number }) => void;
 }): ReactElement {
   const { exit } = useApp();
-  const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
+  const [tasks, setTasks] = useState<Task[]>(() => loadTasks(listId));
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [mode, setMode] = useState<Mode>("list");
   const [pendingDeleteId, setPendingDeleteId] = useState<number | undefined>(undefined);
@@ -52,19 +60,20 @@ export function TodosPage({
   const [editFocus, setEditFocus] = useState<EditFocus>("input");
 
   useEffect(() => {
-    onNavLockChange(mode === "add" || mode === "edit");
+    onNavLockChange(mode === "add" || mode === "edit" || mode === "rename-list");
     if (active) {
-      onHintChange(mode === "list" ? LIST_HINT : mode === "edit" ? EDIT_HINT : "");
+      onHintChange(mode === "list" ? LIST_HINT : mode === "edit" ? EDIT_HINT : mode === "rename-list" ? RENAME_LIST_HINT : "");
     }
   }, [mode, active, onNavLockChange, onHintChange]);
 
   useEffect(() => {
+    if (!active) return;
     const { done, total } = computeProgress(tasks);
     onProgressChange({ done, total });
-  }, [tasks, onProgressChange]);
+  }, [tasks, active, onProgressChange]);
 
   function refresh(): void {
-    setTasks(loadTasks());
+    setTasks(loadTasks(listId));
   }
 
   function commitEdit(): void {
@@ -141,6 +150,13 @@ export function TodosPage({
         return;
       }
 
+      if (mode === "rename-list") {
+        if (key.escape) {
+          setMode("list");
+        }
+        return;
+      }
+
       if (mode === "confirm-delete") {
         if (input === "y" || input === "d" || key.return) {
           if (pendingDeleteId !== undefined) {
@@ -148,7 +164,7 @@ export function TodosPage({
             if (result.status === "blocked") {
               setMessage(result.reason);
             } else {
-              const nextTasks = loadTasks();
+              const nextTasks = loadTasks(listId);
               setTasks(nextTasks);
               setSelectedIndex((index) => clampSelection(nextTasks, index));
             }
@@ -232,6 +248,11 @@ export function TodosPage({
         setMode("add");
         return;
       }
+
+      if (input === "r") {
+        setMode("rename-list");
+        return;
+      }
     },
     { isActive: active },
   );
@@ -248,8 +269,23 @@ export function TodosPage({
         <AddTaskInput
           label={addParentId === null ? "New task: " : "New sub-item: "}
           onSubmit={(text) => {
-            addTask(text, addParentId);
+            addTask(listId, text, addParentId);
             refresh();
+            setMode("list");
+          }}
+        />
+      )}
+      {mode === "rename-list" && (
+        <AddTaskInput
+          label="Rename list: "
+          initialValue={listName}
+          onSubmit={(text) => {
+            const result = renameList(listId, text);
+            if (result.status === "blocked") {
+              setMessage(result.reason);
+            } else if (result.status === "ok") {
+              onListRenamed();
+            }
             setMode("list");
           }}
         />
