@@ -5,6 +5,7 @@ import { TodosPage } from "./TodosPage.js";
 import { SettingsPage } from "./SettingsPage.js";
 import type { Page } from "./Sidebar.js";
 import { loadSettings, type Settings } from "../settings.js";
+import { computeProgress, loadTasks } from "../store.js";
 
 export function App(): ReactElement {
   const { exit } = useApp();
@@ -13,6 +14,10 @@ export function App(): ReactElement {
   const [message, setMessage] = useState<string | undefined>(undefined);
   const [hint, setHint] = useState<string>("");
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  const [progress, setProgress] = useState<{ done: number; total: number }>(() => {
+    const { done, total } = computeProgress(loadTasks());
+    return { done, total };
+  });
 
   useInput((input, key) => {
     if (key.ctrl && input === "c") {
@@ -27,12 +32,21 @@ export function App(): ReactElement {
   });
 
   return (
-    <Frame message={message} hint={hint} width={settings.width} height={settings.height} activePage={page}>
+    <Frame
+      message={message}
+      hint={hint}
+      width={settings.width}
+      height={settings.height}
+      activePage={page}
+      progress={progress}
+      progressAnimated={settings.progressAnimation}
+    >
       <TodosPage
         active={page === "todos"}
         setMessage={setMessage}
         onNavLockChange={setNavLocked}
         onHintChange={setHint}
+        onProgressChange={setProgress}
       />
       <SettingsPage
         active={page === "settings"}

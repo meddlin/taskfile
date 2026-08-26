@@ -63,12 +63,12 @@ describe("App", () => {
     const { stdin, lastFrame, unmount } = render(<App />);
     await delay();
 
-    expect(lastFrame()).toContain("0% complete (0/2)");
+    expect(lastFrame()).toContain("Progress 0 %");
 
     stdin.write(" ");
     await delay();
 
-    expect(lastFrame()).toContain("50% complete (1/2)");
+    expect(lastFrame()).toContain("Progress 50 %");
 
     unmount();
   });

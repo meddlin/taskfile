@@ -5,9 +5,10 @@ import * as path from "path";
 export interface Settings {
   width: number;
   height: number;
+  progressAnimation: boolean;
 }
 
-const DEFAULT_SETTINGS: Settings = { width: 120, height: 40 };
+const DEFAULT_SETTINGS: Settings = { width: 120, height: 40, progressAnimation: true };
 
 const WIDTH_RANGE = { min: 40, max: 300 };
 const HEIGHT_RANGE = { min: 10, max: 100 };
@@ -36,6 +37,8 @@ export function loadSettings(): Settings {
     return {
       width: typeof parsed.width === "number" ? clamp(parsed.width, WIDTH_RANGE) : DEFAULT_SETTINGS.width,
       height: typeof parsed.height === "number" ? clamp(parsed.height, HEIGHT_RANGE) : DEFAULT_SETTINGS.height,
+      progressAnimation:
+        typeof parsed.progressAnimation === "boolean" ? parsed.progressAnimation : DEFAULT_SETTINGS.progressAnimation,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -47,6 +50,7 @@ export function saveSettings(update: Partial<Settings>): Settings {
   const next: Settings = {
     width: update.width !== undefined ? clamp(update.width, WIDTH_RANGE) : current.width,
     height: update.height !== undefined ? clamp(update.height, HEIGHT_RANGE) : current.height,
+    progressAnimation: update.progressAnimation !== undefined ? update.progressAnimation : current.progressAnimation,
   };
 
   const storeDir = getStoreDir();

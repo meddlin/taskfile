@@ -14,7 +14,6 @@ import {
 import { TaskList } from "./TaskList.js";
 import { AddTaskInput } from "./AddTaskInput.js";
 import { EditTaskModal, type EditFocus } from "./EditTaskModal.js";
-import { ProgressBar } from "./ProgressBar.js";
 
 type Mode = "list" | "add" | "confirm-delete" | "edit";
 
@@ -33,11 +32,13 @@ export function TodosPage({
   setMessage,
   onNavLockChange,
   onHintChange,
+  onProgressChange,
 }: {
   active: boolean;
   setMessage: (message: string | undefined) => void;
   onNavLockChange: (locked: boolean) => void;
   onHintChange: (hint: string) => void;
+  onProgressChange: (progress: { done: number; total: number }) => void;
 }): ReactElement {
   const { exit } = useApp();
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
@@ -56,6 +57,11 @@ export function TodosPage({
       onHintChange(mode === "list" ? LIST_HINT : mode === "edit" ? EDIT_HINT : "");
     }
   }, [mode, active, onNavLockChange, onHintChange]);
+
+  useEffect(() => {
+    const { done, total } = computeProgress(tasks);
+    onProgressChange({ done, total });
+  }, [tasks, onProgressChange]);
 
   function refresh(): void {
     setTasks(loadTasks());
@@ -231,13 +237,11 @@ export function TodosPage({
   );
 
   const pendingDeleteTask = tasks.find((task) => task.id === pendingDeleteId);
-  const { done, total } = computeProgress(tasks);
 
   if (!active) return <></>;
 
   return (
     <>
-      <ProgressBar done={done} total={total} />
       <TaskList tasks={tasks} selectedIndex={selectedIndex} />
       {mode === "confirm-delete" && pendingDeleteTask && <Text>Delete "{pendingDeleteTask.text}"? (y/n)</Text>}
       {mode === "add" && (

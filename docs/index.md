@@ -20,7 +20,7 @@ Extra Productivity Features
 
 UI
     - [x] Message bar to show warning/error messages
-    - [] Progress Bar
-        - [] Show a progress bar for the percent completion across *all* todo items.
+    - [x] Progress Bar
+        - [x] Show a progress bar for the percent completion across *all* todo items.
     - [x] Settings page
         - [x] Ability to set default width x height for window
