@@ -6,9 +6,12 @@ import { SettingsPage } from "./SettingsPage.js";
 import { AddTaskInput } from "./AddTaskInput.js";
 import type { Page } from "./Sidebar.js";
 import { loadSettings, saveSettings, type Settings } from "../settings.js";
-import { computeProgress, createList, loadLists, loadTasks, type List } from "../store.js";
+import { computeProgress, createList, loadLists, loadTasks, renameList, type List } from "../store.js";
 
-type Mode = "normal" | "new-list";
+type Mode = "normal" | "new-list" | "nav-rename-list";
+type Focus = "nav" | "content";
+
+const NAV_HINT = "↑/↓ cycle pages · ←/→ switch focus · r rename list · Tab switch · Ctrl+N new list · q quit";
 
 function buildPages(lists: List[]): Page[] {
   return [...lists.map((list) => ({ type: "list" as const, listId: list.id })), { type: "settings" as const }];
@@ -31,6 +34,7 @@ export function App(): ReactElement {
     return { type: "list", listId: match ? savedId! : lists[0]!.id };
   });
   const [mode, setMode] = useState<Mode>("normal");
+  const [focus, setFocus] = useState<Focus>("content");
   const [navLocked, setNavLocked] = useState(false);
   const [message, setMessage] = useState<string | undefined>(undefined);
   const [hint, setHint] = useState<string>("");
@@ -50,6 +54,8 @@ export function App(): ReactElement {
     setLists(loadLists());
   }
 
+  const renamingListId = mode === "nav-rename-list" && page.type === "list" ? page.listId : undefined;
+
   function cyclePage(delta: number): void {
     const pages = buildPages(lists);
     const currentIndex = pages.findIndex((candidate) => pagesEqual(candidate, page));
@@ -63,9 +69,10 @@ export function App(): ReactElement {
       return;
     }
 
-    if (mode === "new-list") {
+    if (mode === "new-list" || mode === "nav-rename-list") {
       if (key.escape) {
         setMode("normal");
+        setHint(NAV_HINT);
       }
       return;
     }
@@ -84,6 +91,39 @@ export function App(): ReactElement {
     if (key.tab) {
       setMessage(undefined);
       cyclePage(key.shift ? -1 : 1);
+      return;
+    }
+
+    if (key.leftArrow) {
+      setFocus("nav");
+      setHint(NAV_HINT);
+      return;
+    }
+
+    if (key.rightArrow) {
+      setFocus("content");
+      return;
+    }
+
+    if (focus === "nav") {
+      if (key.upArrow) {
+        setMessage(undefined);
+        cyclePage(-1);
+        return;
+      }
+
+      if (key.downArrow) {
+        setMessage(undefined);
+        cyclePage(1);
+        return;
+      }
+
+      if (input === "r" && page.type === "list") {
+        setMessage(undefined);
+        setHint("enter save · esc cancel");
+        setMode("nav-rename-list");
+        return;
+      }
     }
   });
 
@@ -97,22 +137,28 @@ export function App(): ReactElement {
       activePage={page}
       progress={progress}
       progressAnimated={settings.progressAnimation}
+      navFocused={focus === "nav"}
     >
-      {lists.map((list) => (
-        <TodosPage
-          key={list.id}
-          listId={list.id}
-          listName={list.name}
-          onListRenamed={refreshLists}
-          active={mode === "normal" && page.type === "list" && page.listId === list.id}
-          setMessage={setMessage}
-          onNavLockChange={setNavLocked}
-          onHintChange={setHint}
-          onProgressChange={setProgress}
-        />
-      ))}
+      {lists.map((list) => {
+        const visible = mode === "normal" && page.type === "list" && page.listId === list.id;
+        return (
+          <TodosPage
+            key={list.id}
+            listId={list.id}
+            listName={list.name}
+            onListRenamed={refreshLists}
+            visible={visible}
+            active={visible && focus === "content"}
+            setMessage={setMessage}
+            onNavLockChange={setNavLocked}
+            onHintChange={setHint}
+            onProgressChange={setProgress}
+          />
+        );
+      })}
       <SettingsPage
-        active={mode === "normal" && page.type === "settings"}
+        visible={mode === "normal" && page.type === "settings"}
+        active={mode === "normal" && page.type === "settings" && focus === "content"}
         settings={settings}
         onSettingsChange={setSettings}
         setMessage={setMessage}
@@ -127,6 +173,22 @@ export function App(): ReactElement {
             setLists(loadLists());
             setPage({ type: "list", listId: list.id });
             setMode("normal");
+          }}
+        />
+      )}
+      {renamingListId !== undefined && (
+        <AddTaskInput
+          label="Rename list: "
+          initialValue={lists.find((l) => l.id === renamingListId)?.name ?? ""}
+          onSubmit={(text) => {
+            const result = renameList(renamingListId, text);
+            if (result.status === "blocked") {
+              setMessage(result.reason);
+            } else if (result.status === "ok") {
+              refreshLists();
+            }
+            setMode("normal");
+            setHint(NAV_HINT);
           }}
         />
       )}

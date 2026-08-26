@@ -320,6 +320,156 @@ describe("App", () => {
     unmount();
   });
 
+  it("stops content keys from responding after Left moves focus to the sidebar", async () => {
+    addTask(getDefaultListId(), "Buy milk");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left arrow -> nav focus
+    await delay();
+    stdin.write(" "); // would toggle done if content still had focus
+    await delay();
+
+    expect(loadTasks(getDefaultListId())[0]?.done).toBe(false);
+
+    unmount();
+  });
+
+  it("restores content keys after Right moves focus back from the sidebar", async () => {
+    addTask(getDefaultListId(), "Buy milk");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left -> nav focus
+    await delay();
+    stdin.write("\x1B[C"); // Right -> content focus
+    await delay();
+    stdin.write(" ");
+    await delay();
+
+    expect(loadTasks(getDefaultListId())[0]?.done).toBe(true);
+
+    unmount();
+  });
+
+  it("keeps the content pane visible while the sidebar has focus", async () => {
+    addTask(getDefaultListId(), "Buy milk");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left -> nav focus
+    await delay();
+
+    expect(lastFrame()).toContain("Buy milk");
+
+    unmount();
+  });
+
+  it("cycles pages with Up/Down while the sidebar has focus, same as Tab", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left -> nav focus
+    await delay();
+    stdin.write("\x1B[B"); // Down -> Settings
+    await delay();
+
+    expect(lastFrame()).toContain("Window width");
+
+    stdin.write("\x1B[A"); // Up -> back to Todos
+    await delay();
+
+    expect(lastFrame()).not.toContain("Window width");
+
+    unmount();
+  });
+
+  it("does not move the task selection with Up/Down while the sidebar has focus", async () => {
+    addTask(getDefaultListId(), "Buy milk");
+    addTask(getDefaultListId(), "Walk the dog");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left -> nav focus
+    await delay();
+    stdin.write("\x1B[B"); // Down (cycles to Settings, should not touch task selection)
+    await delay();
+    stdin.write("\x1B[A"); // Up (back to Todos)
+    await delay();
+    stdin.write("\x1B[C"); // Right -> content focus
+    await delay();
+    stdin.write(" "); // toggle whatever is still selected
+
+    await delay();
+
+    const tasks = loadTasks(getDefaultListId());
+    expect(tasks.find((t) => t.text === "Buy milk")?.done).toBe(true);
+    expect(tasks.find((t) => t.text === "Walk the dog")?.done).toBe(false);
+
+    unmount();
+  });
+
+  it("renames a list from the sidebar without entering its content", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left -> nav focus
+    await delay();
+    stdin.write("r");
+    await delay();
+    await backspace(stdin, 5); // remove "Todos"
+    stdin.write("Personal");
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(loadLists()[0]?.name).toBe("Personal");
+    expect(lastFrame()).toContain("Personal");
+    expect(lastFrame()).not.toContain("Todos");
+
+    unmount();
+  });
+
+  it("cancels a sidebar rename with Escape and leaves the name unchanged", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left -> nav focus
+    await delay();
+    stdin.write("r");
+    await delay();
+    stdin.write("Discarded");
+    await delay();
+    stdin.write("\x1B"); // Escape
+    await delay();
+
+    expect(loadLists()[0]?.name).toBe("Todos");
+    expect(lastFrame()).not.toContain("Discarded");
+
+    unmount();
+  });
+
+  it("does nothing when r is pressed with the sidebar focused on Settings", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left -> nav focus
+    await delay();
+    stdin.write("\x1B[B"); // Down -> Settings row
+    await delay();
+    stdin.write("r");
+    await delay();
+
+    expect(lastFrame()).not.toContain("Rename list:");
+    expect(loadLists().map((l) => l.name)).toEqual(["Todos"]);
+
+    unmount();
+  });
+
   it("keeps each list's tasks and selection independent when switching with Tab", async () => {
     addTask(getDefaultListId(), "Default list task");
 

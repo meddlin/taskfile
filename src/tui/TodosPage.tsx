@@ -19,7 +19,7 @@ import { EditTaskModal, type EditFocus } from "./EditTaskModal.js";
 type Mode = "list" | "add" | "confirm-delete" | "edit" | "rename-list";
 
 const LIST_HINT =
-  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · r rename list · Tab switch · Ctrl+N new list · q quit";
+  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · r rename list · ←/→ nav focus · Tab switch · Ctrl+N new list · q quit";
 const EDIT_HINT = "tab cycle · space toggle priority · enter save · esc cancel";
 const RENAME_LIST_HINT = "enter save · esc cancel";
 
@@ -30,6 +30,7 @@ function resolveGroupParentId(tasks: Task[], index: number): number | undefined 
 }
 
 export function TodosPage({
+  visible,
   active,
   listId,
   listName,
@@ -39,6 +40,7 @@ export function TodosPage({
   onHintChange,
   onProgressChange,
 }: {
+  visible: boolean;
   active: boolean;
   listId: number;
   listName: string;
@@ -67,10 +69,10 @@ export function TodosPage({
   }, [mode, active, onNavLockChange, onHintChange]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!visible) return;
     const { done, total } = computeProgress(tasks);
     onProgressChange({ done, total });
-  }, [tasks, active, onProgressChange]);
+  }, [tasks, visible, onProgressChange]);
 
   function refresh(): void {
     setTasks(loadTasks(listId));
@@ -259,7 +261,7 @@ export function TodosPage({
 
   const pendingDeleteTask = tasks.find((task) => task.id === pendingDeleteId);
 
-  if (!active) return <></>;
+  if (!visible) return <></>;
 
   return (
     <>

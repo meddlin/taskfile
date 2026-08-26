@@ -15,7 +15,17 @@ function NavRow({ label, active, contentWidth }: { label: string; active: boolea
   );
 }
 
-export function Sidebar({ width, lists, activePage }: { width: number; lists: List[]; activePage: Page }): ReactElement {
+export function Sidebar({
+  width,
+  lists,
+  activePage,
+  focused,
+}: {
+  width: number;
+  lists: List[];
+  activePage: Page;
+  focused: boolean;
+}): ReactElement {
   const contentWidth = width - 1; // 1 column reserved for the right border
 
   return (
@@ -24,6 +34,7 @@ export function Sidebar({ width, lists, activePage }: { width: number; lists: Li
       width={width}
       flexGrow={1}
       borderStyle="single"
+      borderColor={focused ? theme.accent : undefined}
       borderTop={false}
       borderBottom={false}
       borderLeft={false}

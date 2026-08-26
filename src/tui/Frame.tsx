@@ -23,6 +23,7 @@ export function Frame({
   activePage,
   progress,
   progressAnimated,
+  navFocused,
 }: {
   children: ReactNode;
   message?: string;
@@ -33,6 +34,7 @@ export function Frame({
   activePage: Page;
   progress: { done: number; total: number };
   progressAnimated: boolean;
+  navFocused: boolean;
 }): ReactElement {
   const innerWidth = width - BORDER_WIDTH * 2 - PADDING_X * 2;
   const contentWidth = innerWidth - SIDEBAR_WIDTH;
@@ -52,7 +54,7 @@ export function Frame({
       </Box>
       <Divider width={innerWidth} />
       <Box flexDirection="row" flexGrow={1}>
-        <Sidebar width={SIDEBAR_WIDTH} lists={lists} activePage={activePage} />
+        <Sidebar width={SIDEBAR_WIDTH} lists={lists} activePage={activePage} focused={navFocused} />
         <Box flexDirection="column" width={contentWidth} paddingLeft={contentPaddingLeft}>
           <MessageArea message={message} width={messageAreaWidth} />
           {children}
