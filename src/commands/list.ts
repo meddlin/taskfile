@@ -1,7 +1,7 @@
-import { loadTasks } from "../store.js";
+import { getDefaultListId, loadTasks } from "../store.js";
 
 export function listItems(): void {
-  const tasks = loadTasks();
+  const tasks = loadTasks(getDefaultListId());
 
   if (tasks.length === 0) {
     console.log("No tasks yet. Add one with `taskfile add <text>`.");

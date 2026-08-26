@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { addItem } from "./add.js";
-import { loadTasks } from "../store.js";
+import { getDefaultListId, loadTasks } from "../store.js";
 
 describe("addItem", () => {
   let tempHome: string;
@@ -24,7 +24,7 @@ describe("addItem", () => {
   it("adds a task with id 1 when the store is empty", () => {
     addItem("Buy milk");
 
-    const tasks = loadTasks();
+    const tasks = loadTasks(getDefaultListId());
     expect(tasks).toHaveLength(1);
     expect(tasks[0]).toMatchObject({ id: 1, text: "Buy milk", done: false });
   });
@@ -33,7 +33,7 @@ describe("addItem", () => {
     addItem("Buy milk");
     addItem("Walk the dog");
 
-    const tasks = loadTasks();
+    const tasks = loadTasks(getDefaultListId());
     expect(tasks.map((t) => t.id)).toEqual([1, 2]);
     expect(tasks.map((t) => t.text)).toEqual(["Buy milk", "Walk the dog"]);
   });

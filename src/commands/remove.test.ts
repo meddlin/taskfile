@@ -4,7 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import { removeItem } from "./remove.js";
 import { addItem } from "./add.js";
-import { addTask, loadTasks } from "../store.js";
+import { addTask, getDefaultListId, loadTasks } from "../store.js";
 
 describe("removeItem", () => {
   let tempHome: string;
@@ -28,7 +28,7 @@ describe("removeItem", () => {
 
     removeItem(1);
 
-    const tasks = loadTasks();
+    const tasks = loadTasks(getDefaultListId());
     expect(tasks).toHaveLength(1);
     expect(tasks[0]).toMatchObject({ id: 2, text: "Walk the dog" });
   });
@@ -59,13 +59,13 @@ describe("removeItem", () => {
 
     removeItem(99);
 
-    const tasks = loadTasks();
+    const tasks = loadTasks(getDefaultListId());
     expect(tasks).toHaveLength(1);
   });
 
   it("prints an error and sets a non-zero exit code when the item still has sub-items", () => {
     addItem("Plan trip");
-    addTask("Book flights", 1);
+    addTask(getDefaultListId(), "Book flights", 1);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     process.exitCode = 0;
 
@@ -73,7 +73,7 @@ describe("removeItem", () => {
 
     expect(errorSpy).toHaveBeenCalledWith("Delete all sub-items first.");
     expect(process.exitCode).toBe(1);
-    expect(loadTasks()).toHaveLength(2);
+    expect(loadTasks(getDefaultListId())).toHaveLength(2);
 
     process.exitCode = 0;
   });

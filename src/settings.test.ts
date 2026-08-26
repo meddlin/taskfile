@@ -20,15 +20,22 @@ describe("settings", () => {
   });
 
   it("loadSettings returns defaults when no settings file exists", () => {
-    expect(loadSettings()).toEqual({ width: 120, height: 40, progressAnimation: true });
+    expect(loadSettings()).toEqual({ width: 120, height: 40, progressAnimation: true, lastActiveListId: null });
   });
 
   it("saveSettings persists a partial update and merges over the current values", () => {
     saveSettings({ width: 100 });
     const saved = saveSettings({ height: 30 });
 
-    expect(saved).toEqual({ width: 100, height: 30, progressAnimation: true });
-    expect(loadSettings()).toEqual({ width: 100, height: 30, progressAnimation: true });
+    expect(saved).toEqual({ width: 100, height: 30, progressAnimation: true, lastActiveListId: null });
+    expect(loadSettings()).toEqual({ width: 100, height: 30, progressAnimation: true, lastActiveListId: null });
+  });
+
+  it("saveSettings persists the lastActiveListId", () => {
+    const saved = saveSettings({ lastActiveListId: 3 });
+
+    expect(saved).toMatchObject({ lastActiveListId: 3 });
+    expect(loadSettings()).toMatchObject({ lastActiveListId: 3 });
   });
 
   it("saveSettings persists the progressAnimation toggle", () => {
@@ -56,6 +63,6 @@ describe("settings", () => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "settings.json"), "not json");
 
-    expect(loadSettings()).toEqual({ width: 120, height: 40, progressAnimation: true });
+    expect(loadSettings()).toEqual({ width: 120, height: 40, progressAnimation: true, lastActiveListId: null });
   });
 });

@@ -5,6 +5,7 @@ import { MessageArea } from "./MessageArea.js";
 import { ProgressBar } from "./ProgressBar.js";
 import { Sidebar, type Page } from "./Sidebar.js";
 import { theme } from "./theme.js";
+import type { List } from "../store.js";
 
 const BORDER_WIDTH = 1; // each side
 const PADDING_X = 1; // each side
@@ -18,18 +19,22 @@ export function Frame({
   hint,
   width,
   height,
+  lists,
   activePage,
   progress,
   progressAnimated,
+  navFocused,
 }: {
   children: ReactNode;
   message?: string;
   hint?: string;
   width: number;
   height: number;
+  lists: List[];
   activePage: Page;
   progress: { done: number; total: number };
   progressAnimated: boolean;
+  navFocused: boolean;
 }): ReactElement {
   const innerWidth = width - BORDER_WIDTH * 2 - PADDING_X * 2;
   const contentWidth = innerWidth - SIDEBAR_WIDTH;
@@ -49,7 +54,7 @@ export function Frame({
       </Box>
       <Divider width={innerWidth} />
       <Box flexDirection="row" flexGrow={1}>
-        <Sidebar width={SIDEBAR_WIDTH} activePage={activePage} />
+        <Sidebar width={SIDEBAR_WIDTH} lists={lists} activePage={activePage} focused={navFocused} />
         <Box flexDirection="column" width={contentWidth} paddingLeft={contentPaddingLeft}>
           <MessageArea message={message} width={messageAreaWidth} />
           {children}

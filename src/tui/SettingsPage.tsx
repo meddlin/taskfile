@@ -7,7 +7,7 @@ type Field = "width" | "height" | "progressAnimation";
 type FieldType = "number" | "boolean";
 type Mode = "view" | "edit";
 
-const VIEW_HINT = "↑/k ↓/j select · enter edit · space toggle · Tab TODOs · q quit";
+const VIEW_HINT = "↑/k ↓/j select · enter edit · space toggle · ←/→ nav focus · Tab lists · Ctrl+N new list · q quit";
 const EDIT_HINT = "enter save · esc cancel";
 
 const FIELDS: { key: Field; label: string; type: FieldType }[] = [
@@ -17,6 +17,7 @@ const FIELDS: { key: Field; label: string; type: FieldType }[] = [
 ];
 
 export function SettingsPage({
+  visible,
   active,
   settings,
   onSettingsChange,
@@ -24,6 +25,7 @@ export function SettingsPage({
   onNavLockChange,
   onHintChange,
 }: {
+  visible: boolean;
   active: boolean;
   settings: Settings;
   onSettingsChange: (next: Settings) => void;
@@ -104,15 +106,15 @@ export function SettingsPage({
     setMode("view");
   }
 
-  if (!active) return <></>;
+  if (!visible) return <></>;
 
   return (
     <Box flexDirection="column">
       <Text bold>Settings</Text>
       <Text> </Text>
       {FIELDS.map((field, index) => {
-        const isSelected = active && mode === "view" && index === selectedField;
-        const isEditing = active && mode === "edit" && index === selectedField;
+        const isSelected = visible && mode === "view" && index === selectedField;
+        const isEditing = visible && mode === "edit" && index === selectedField;
 
         if (field.type === "boolean") {
           const value = settings[field.key] as boolean;
