@@ -3,15 +3,17 @@ import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import { saveSettings, type Settings } from "../settings.js";
 
-type Field = "width" | "height";
+type Field = "width" | "height" | "progressAnimation";
+type FieldType = "number" | "boolean";
 type Mode = "view" | "edit";
 
-const VIEW_HINT = "↑/k ↓/j select · enter edit · Tab TODOs · q quit";
+const VIEW_HINT = "↑/k ↓/j select · enter edit · space toggle · Tab TODOs · q quit";
 const EDIT_HINT = "enter save · esc cancel";
 
-const FIELDS: { key: Field; label: string }[] = [
-  { key: "width", label: "Window width" },
-  { key: "height", label: "Window height" },
+const FIELDS: { key: Field; label: string; type: FieldType }[] = [
+  { key: "width", label: "Window width", type: "number" },
+  { key: "height", label: "Window height", type: "number" },
+  { key: "progressAnimation", label: "Progress bar animation", type: "boolean" },
 ];
 
 export function SettingsPage({
@@ -68,6 +70,14 @@ export function SettingsPage({
         return;
       }
 
+      const field = FIELDS[selectedField]!;
+
+      if (field.type === "boolean" && (input === " " || key.return)) {
+        const next = saveSettings({ [field.key]: !settings[field.key] } as Partial<Settings>);
+        onSettingsChange(next);
+        return;
+      }
+
       if (key.return) {
         setEditValue("");
         setMode("edit");
@@ -100,22 +110,33 @@ export function SettingsPage({
     <Box flexDirection="column">
       <Text bold>Settings</Text>
       <Text> </Text>
-      {FIELDS.map(({ key, label }, index) => {
+      {FIELDS.map((field, index) => {
         const isSelected = active && mode === "view" && index === selectedField;
         const isEditing = active && mode === "edit" && index === selectedField;
 
+        if (field.type === "boolean") {
+          const value = settings[field.key] as boolean;
+          return (
+            <Box key={field.key}>
+              <Text inverse={isSelected}>
+                [{value ? "x" : " "}] {field.label}
+              </Text>
+            </Box>
+          );
+        }
+
         return (
-          <Box key={key}>
-            <Text inverse={isSelected}>{label}: </Text>
+          <Box key={field.key}>
+            <Text inverse={isSelected}>{field.label}: </Text>
             {isEditing ? (
               <TextInput
                 value={editValue}
                 onChange={setEditValue}
                 onSubmit={submitEdit}
-                placeholder={String(settings[key])}
+                placeholder={String(settings[field.key])}
               />
             ) : (
-              <Text>{settings[key]}</Text>
+              <Text>{settings[field.key]}</Text>
             )}
           </Box>
         );

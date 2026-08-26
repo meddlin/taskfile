@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactElement } from "react";
 import { Text, useApp, useInput } from "ink";
 import {
   addTask,
+  computeProgress,
   hasSubItems,
   loadTasks,
   removeTask,
@@ -31,11 +32,13 @@ export function TodosPage({
   setMessage,
   onNavLockChange,
   onHintChange,
+  onProgressChange,
 }: {
   active: boolean;
   setMessage: (message: string | undefined) => void;
   onNavLockChange: (locked: boolean) => void;
   onHintChange: (hint: string) => void;
+  onProgressChange: (progress: { done: number; total: number }) => void;
 }): ReactElement {
   const { exit } = useApp();
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
@@ -54,6 +57,11 @@ export function TodosPage({
       onHintChange(mode === "list" ? LIST_HINT : mode === "edit" ? EDIT_HINT : "");
     }
   }, [mode, active, onNavLockChange, onHintChange]);
+
+  useEffect(() => {
+    const { done, total } = computeProgress(tasks);
+    onProgressChange({ done, total });
+  }, [tasks, onProgressChange]);
 
   function refresh(): void {
     setTasks(loadTasks());

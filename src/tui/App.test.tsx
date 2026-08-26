@@ -56,6 +56,23 @@ describe("App", () => {
     unmount();
   });
 
+  it("updates the progress bar live as tasks are toggled done", async () => {
+    addTask("Buy milk");
+    addTask("Walk the dog");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    expect(lastFrame()).toContain("Progress 0 %");
+
+    stdin.write(" ");
+    await delay();
+
+    expect(lastFrame()).toContain("Progress 50 %");
+
+    unmount();
+  });
+
   it("removes the selected task after confirming with y", async () => {
     addTask("Buy milk");
 
