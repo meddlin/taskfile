@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { addTask, hasSubItems, loadTasks, removeTask, setPriority, toggleTask } from "./store.js";
+import { addTask, computeProgress, hasSubItems, loadTasks, removeTask, setPriority, toggleTask, type Task } from "./store.js";
+
+function makeTask(overrides: Partial<Task> = {}): Task {
+  return { id: 1, text: "task", done: false, parentId: null, priority: false, createdAt: "", ...overrides };
+}
 
 describe("store", () => {
   let tempHome: string;
@@ -287,5 +291,40 @@ describe("store", () => {
     setPriority(4, true); // mark only "A sub 2" priority, not its parent
 
     expect(loadTasks().map((t) => t.id)).toEqual([1, 4, 3, 2]);
+  });
+});
+
+describe("computeProgress", () => {
+  it("returns zeroes for an empty task list", () => {
+    expect(computeProgress([])).toEqual({ done: 0, total: 0, percent: 0 });
+  });
+
+  it("returns 100 percent when all tasks are done", () => {
+    const tasks = [makeTask({ id: 1, done: true }), makeTask({ id: 2, done: true })];
+    expect(computeProgress(tasks)).toEqual({ done: 2, total: 2, percent: 100 });
+  });
+
+  it("returns 0 percent when no tasks are done", () => {
+    const tasks = [makeTask({ id: 1, done: false }), makeTask({ id: 2, done: false })];
+    expect(computeProgress(tasks)).toEqual({ done: 0, total: 2, percent: 0 });
+  });
+
+  it("counts main items and sub-items flatly", () => {
+    const tasks = [
+      makeTask({ id: 1, parentId: null, done: true }),
+      makeTask({ id: 2, parentId: 1, done: false }),
+      makeTask({ id: 3, parentId: 1, done: false }),
+      makeTask({ id: 4, parentId: 1, done: false }),
+    ];
+    expect(computeProgress(tasks)).toEqual({ done: 1, total: 4, percent: 25 });
+  });
+
+  it("rounds the percentage", () => {
+    const tasks = [
+      makeTask({ id: 1, done: true }),
+      makeTask({ id: 2, done: false }),
+      makeTask({ id: 3, done: false }),
+    ];
+    expect(computeProgress(tasks).percent).toBe(33);
   });
 });

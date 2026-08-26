@@ -203,6 +203,14 @@ export function updateTask(id: number, text: string): UpdateResult {
   return { status: "ok", task: { ...rowToTask(row), text: trimmed } };
 }
 
+// Counts all tasks flat, ignoring parentId (main items and sub-items count equally).
+export function computeProgress(tasks: Task[]): { done: number; total: number; percent: number } {
+  const total = tasks.length;
+  const done = tasks.filter((task) => task.done).length;
+  const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+  return { done, total, percent };
+}
+
 export function hasSubItems(id: number): boolean {
   const { count } = getDb()
     .prepare("SELECT COUNT(*) AS count FROM tasks WHERE parentId = ?")

@@ -2,19 +2,23 @@
 
 ## Features
 
+Core Features
+
 - [x] Create todo items
 - [x] Mark todo items as done
 - [x] Edit a todo item
 - [x] Remove todo items
 
+Extra Productivity Features
+
 - [x] Support for "sub-items"
 - [] Support for different lists of todos
 - [] Support for viewing "daily snapshots" of todo lists
-- [] Support for priority todo items
-    - [] Show a yellow asterisk (*) in front of them
-    - [] Place them at the top of the list
+- [x] Support for priority todo items
+    - [x] Show a yellow asterisk (*) in front of them
+    - [x] Place them at the top of the list
 
-- UI
+UI
     - [x] Message bar to show warning/error messages
     - [] Progress Bar
         - [] Show a progress bar for the percent completion across *all* todo items.
