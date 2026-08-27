@@ -4,14 +4,26 @@ import { Frame } from "./Frame.js";
 import { TodosPage } from "./TodosPage.js";
 import { SettingsPage } from "./SettingsPage.js";
 import { AddTaskInput } from "./AddTaskInput.js";
+import { SnapshotsModal } from "./SnapshotsModal.js";
+import { SnapshotDetailView } from "./SnapshotDetailView.js";
 import type { Page } from "./Sidebar.js";
 import { loadSettings, saveSettings, type Settings } from "../settings.js";
 import { computeProgress, createList, loadLists, loadTasks, renameList, type List } from "../store.js";
+import {
+  deleteSnapshot,
+  listSnapshots,
+  loadSnapshotDetail,
+  type SnapshotDetail,
+  type SnapshotSummary,
+} from "../snapshots.js";
 
-type Mode = "normal" | "new-list" | "nav-rename-list";
+type Mode = "normal" | "new-list" | "nav-rename-list" | "snapshots";
 type Focus = "nav" | "content";
 
-const NAV_HINT = "↑/↓ cycle pages · ←/→ switch focus · r rename list · Tab switch · Ctrl+N new list · q quit";
+const NAV_HINT = "↑/↓ cycle pages · ←/→ switch focus · r rename list · Tab switch · Ctrl+N new list · h snapshots · q quit";
+const SNAPSHOT_MODAL_HINT = "↑/k ↓/j select · enter/space view · d delete · esc close";
+const SNAPSHOT_CONFIRM_DELETE_HINT = "y confirm delete · n/esc cancel";
+const VIEW_SNAPSHOT_HINT = "esc/h back to live view";
 
 function buildPages(lists: List[]): Page[] {
   return [...lists.map((list) => ({ type: "list" as const, listId: list.id })), { type: "settings" as const }];
@@ -43,6 +55,11 @@ export function App(): ReactElement {
     const { done, total } = computeProgress(loadTasks(activeListId));
     return { done, total };
   });
+  const [snapshotSummaries, setSnapshotSummaries] = useState<SnapshotSummary[]>([]);
+  const [snapshotSelectedIndex, setSnapshotSelectedIndex] = useState(0);
+  const [snapshotModalMode, setSnapshotModalMode] = useState<"list" | "confirm-delete">("list");
+  const [pendingDeleteSnapshotId, setPendingDeleteSnapshotId] = useState<number | undefined>(undefined);
+  const [viewingSnapshot, setViewingSnapshot] = useState<SnapshotDetail | undefined>(undefined);
 
   useEffect(() => {
     if (page.type === "list") {
@@ -69,6 +86,76 @@ export function App(): ReactElement {
       return;
     }
 
+    if (viewingSnapshot) {
+      if (key.escape || input === "h") {
+        setViewingSnapshot(undefined);
+        setHint(NAV_HINT);
+      }
+      return;
+    }
+
+    if (mode === "snapshots") {
+      if (snapshotModalMode === "confirm-delete") {
+        if (input === "y" || input === "d" || key.return) {
+          if (pendingDeleteSnapshotId !== undefined) {
+            deleteSnapshot(pendingDeleteSnapshotId);
+            const next = listSnapshots();
+            setSnapshotSummaries(next);
+            setSnapshotSelectedIndex((index) => Math.min(index, Math.max(next.length - 1, 0)));
+          }
+          setPendingDeleteSnapshotId(undefined);
+          setSnapshotModalMode("list");
+          setHint(SNAPSHOT_MODAL_HINT);
+        } else if (input === "n" || key.escape) {
+          setPendingDeleteSnapshotId(undefined);
+          setSnapshotModalMode("list");
+          setHint(SNAPSHOT_MODAL_HINT);
+        }
+        return;
+      }
+
+      if (key.escape) {
+        setMode("normal");
+        setHint(NAV_HINT);
+        return;
+      }
+
+      if (key.upArrow || input === "k") {
+        setSnapshotSelectedIndex((index) => Math.max(index - 1, 0));
+        return;
+      }
+
+      if (key.downArrow || input === "j") {
+        setSnapshotSelectedIndex((index) => Math.min(index + 1, snapshotSummaries.length - 1));
+        return;
+      }
+
+      if (input === " " || key.return) {
+        const summary = snapshotSummaries[snapshotSelectedIndex];
+        if (summary) {
+          const detail = loadSnapshotDetail(summary.id);
+          if (detail) {
+            setViewingSnapshot(detail);
+            setMode("normal");
+            setHint(VIEW_SNAPSHOT_HINT);
+          }
+        }
+        return;
+      }
+
+      if (input === "d" || input === "x") {
+        const summary = snapshotSummaries[snapshotSelectedIndex];
+        if (summary) {
+          setPendingDeleteSnapshotId(summary.id);
+          setSnapshotModalMode("confirm-delete");
+          setHint(SNAPSHOT_CONFIRM_DELETE_HINT);
+        }
+        return;
+      }
+
+      return;
+    }
+
     if (mode === "new-list" || mode === "nav-rename-list") {
       if (key.escape) {
         setMode("normal");
@@ -78,6 +165,16 @@ export function App(): ReactElement {
     }
 
     if (navLocked) {
+      return;
+    }
+
+    if (input === "h") {
+      setMessage(undefined);
+      setSnapshotSummaries(listSnapshots());
+      setSnapshotSelectedIndex(0);
+      setSnapshotModalMode("list");
+      setMode("snapshots");
+      setHint(SNAPSHOT_MODAL_HINT);
       return;
     }
 
@@ -138,9 +235,10 @@ export function App(): ReactElement {
       progress={progress}
       progressAnimated={settings.progressAnimation}
       navFocused={focus === "nav"}
+      snapshotDate={viewingSnapshot?.date}
     >
       {lists.map((list) => {
-        const visible = mode === "normal" && page.type === "list" && page.listId === list.id;
+        const visible = !viewingSnapshot && mode === "normal" && page.type === "list" && page.listId === list.id;
         return (
           <TodosPage
             key={list.id}
@@ -157,14 +255,23 @@ export function App(): ReactElement {
         );
       })}
       <SettingsPage
-        visible={mode === "normal" && page.type === "settings"}
-        active={mode === "normal" && page.type === "settings" && focus === "content"}
+        visible={!viewingSnapshot && mode === "normal" && page.type === "settings"}
+        active={!viewingSnapshot && mode === "normal" && page.type === "settings" && focus === "content"}
         settings={settings}
         onSettingsChange={setSettings}
         setMessage={setMessage}
         onNavLockChange={setNavLocked}
         onHintChange={setHint}
       />
+      {viewingSnapshot && <SnapshotDetailView detail={viewingSnapshot} />}
+      {mode === "snapshots" && (
+        <SnapshotsModal
+          summaries={snapshotSummaries}
+          selectedIndex={snapshotSelectedIndex}
+          modalMode={snapshotModalMode}
+          pendingDeleteId={pendingDeleteSnapshotId}
+        />
+      )}
       {mode === "new-list" && (
         <AddTaskInput
           label="New list: "

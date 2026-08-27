@@ -14,7 +14,7 @@ Extra Productivity Features
 - [x] Support for "sub-items"
 - [x] Support for different lists of todos
     - [x] Ability to rename lists
-- [] Support for viewing "daily snapshots" of todo lists
+- [x] Support for viewing "daily snapshots" of todo lists
 - [x] Support for priority todo items
     - [x] Show a yellow asterisk (*) in front of them
     - [x] Place them at the top of the list
@@ -26,3 +26,14 @@ UI
     - [x] Settings page
         - [x] Ability to set default width x height for window
     - [x] Keyboard focus navigation between sidebar and content (←/→ switch focus, ↑/↓ cycle pages or move selection depending on focus, Tab/Shift+Tab unchanged)
+
+CI/CD
+
+- [] Run unit tests on every PR
+- [] Deploy to NPM
+    - [] Make the project available to install via `npx`
+
+- [] Dependabot
+    - [] version updates
+    - [] malware alerts
+- [] CodeQL

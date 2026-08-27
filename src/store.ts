@@ -103,6 +103,37 @@ function ensureSchema(database: DatabaseSync): void {
     )
   `);
 
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS snapshots (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL UNIQUE,
+      createdAt TEXT NOT NULL
+    )
+  `);
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS snapshot_lists (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      snapshotId INTEGER NOT NULL REFERENCES snapshots(id),
+      name TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      orderIndex INTEGER NOT NULL
+    )
+  `);
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS snapshot_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      snapshotListId INTEGER NOT NULL REFERENCES snapshot_lists(id),
+      text TEXT NOT NULL,
+      done INTEGER NOT NULL DEFAULT 0,
+      priority INTEGER NOT NULL DEFAULT 0,
+      parentSnapshotTaskId INTEGER REFERENCES snapshot_tasks(id),
+      createdAt TEXT NOT NULL,
+      orderIndex INTEGER NOT NULL
+    )
+  `);
+
   const columns = database.prepare("PRAGMA table_info(tasks)").all() as unknown as { name: string }[];
   const hasParentId = columns.some((column) => column.name === "parentId");
   if (!hasParentId) {
@@ -133,7 +164,7 @@ function ensureSchema(database: DatabaseSync): void {
   database.prepare("UPDATE tasks SET listId = ? WHERE listId IS NULL").run(defaultListId);
 }
 
-function getDb(): DatabaseSync {
+export function getDb(): DatabaseSync {
   const currentPath = getStoreFile();
 
   if (db && dbPath === currentPath) {
