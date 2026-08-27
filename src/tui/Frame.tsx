@@ -24,6 +24,7 @@ export function Frame({
   progress,
   progressAnimated,
   navFocused,
+  snapshotDate,
 }: {
   children: ReactNode;
   message?: string;
@@ -35,6 +36,7 @@ export function Frame({
   progress: { done: number; total: number };
   progressAnimated: boolean;
   navFocused: boolean;
+  snapshotDate?: string;
 }): ReactElement {
   const innerWidth = width - BORDER_WIDTH * 2 - PADDING_X * 2;
   const contentWidth = innerWidth - SIDEBAR_WIDTH;
@@ -50,7 +52,13 @@ export function Frame({
           {TITLE.padEnd(titleWidth, " ")}
         </Text>
         <Text dimColor>{TITLE_SEPARATOR}</Text>
-        <ProgressBar done={progress.done} total={progress.total} width={progressBarWidth} animated={progressAnimated} />
+        {snapshotDate ? (
+          <Text bold color={theme.accent}>
+            Snapshot - {snapshotDate}
+          </Text>
+        ) : (
+          <ProgressBar done={progress.done} total={progress.total} width={progressBarWidth} animated={progressAnimated} />
+        )}
       </Box>
       <Divider width={innerWidth} />
       <Box flexDirection="row" flexGrow={1}>

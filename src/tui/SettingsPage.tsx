@@ -1,19 +1,46 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
-import { saveSettings, type Settings } from "../settings.js";
+import { pruneSnapshots } from "../snapshots.js";
+import { saveSettings, SNAPSHOT_RETENTION_OPTIONS, type Settings, type SnapshotRetention } from "../settings.js";
 
-type Field = "width" | "height" | "progressAnimation";
-type FieldType = "number" | "boolean";
 type Mode = "view" | "edit";
+
+type FieldDescriptor =
+  | { key: "width" | "height"; label: string; type: "number" }
+  | { key: "progressAnimation" | "dailySnapshotsEnabled"; label: string; type: "boolean" }
+  | {
+      key: "dailySnapshotRetention";
+      label: string;
+      type: "select";
+      options: readonly SnapshotRetention[];
+      formatOption: (value: SnapshotRetention) => string;
+    };
 
 const VIEW_HINT = "↑/k ↓/j select · enter edit · space toggle · ←/→ nav focus · Tab lists · Ctrl+N new list · q quit";
 const EDIT_HINT = "enter save · esc cancel";
 
-const FIELDS: { key: Field; label: string; type: FieldType }[] = [
+const RETENTION_LABELS: Record<SnapshotRetention, string> = {
+  "1-week": "1 week",
+  "1-month": "1 month",
+  "3-months": "3 months",
+  "6-months": "6 months",
+  "12-months": "12 months",
+  forever: "Forever",
+};
+
+const FIELDS: FieldDescriptor[] = [
   { key: "width", label: "Window width", type: "number" },
   { key: "height", label: "Window height", type: "number" },
   { key: "progressAnimation", label: "Progress bar animation", type: "boolean" },
+  { key: "dailySnapshotsEnabled", label: "Daily snapshots", type: "boolean" },
+  {
+    key: "dailySnapshotRetention",
+    label: "Snapshot retention",
+    type: "select",
+    options: SNAPSHOT_RETENTION_OPTIONS,
+    formatOption: (value) => RETENTION_LABELS[value],
+  },
 ];
 
 export function SettingsPage({
@@ -80,6 +107,16 @@ export function SettingsPage({
         return;
       }
 
+      if (field.type === "select" && (input === " " || key.return)) {
+        const currentValue = settings[field.key];
+        const currentOptionIndex = field.options.indexOf(currentValue);
+        const nextValue = field.options[(currentOptionIndex + 1) % field.options.length]!;
+        const next = saveSettings({ [field.key]: nextValue } as Partial<Settings>);
+        onSettingsChange(next);
+        pruneSnapshots(nextValue);
+        return;
+      }
+
       if (key.return) {
         setEditValue("");
         setMode("edit");
@@ -117,11 +154,22 @@ export function SettingsPage({
         const isEditing = visible && mode === "edit" && index === selectedField;
 
         if (field.type === "boolean") {
-          const value = settings[field.key] as boolean;
+          const value = settings[field.key];
           return (
             <Box key={field.key}>
               <Text inverse={isSelected}>
                 [{value ? "x" : " "}] {field.label}
+              </Text>
+            </Box>
+          );
+        }
+
+        if (field.type === "select") {
+          const value = settings[field.key];
+          return (
+            <Box key={field.key}>
+              <Text inverse={isSelected}>
+                {field.label}: {field.formatOption(value)}
               </Text>
             </Box>
           );

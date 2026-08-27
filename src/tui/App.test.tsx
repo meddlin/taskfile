@@ -6,6 +6,7 @@ import { render } from "ink-testing-library";
 import { App } from "./App.js";
 import { addTask, getDefaultListId, loadLists, loadTasks, toggleTask } from "../store.js";
 import { loadSettings } from "../settings.js";
+import { captureSnapshot, listSnapshots } from "../snapshots.js";
 
 function delay(ms = 50): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -662,6 +663,103 @@ describe("App", () => {
     await delay();
 
     expect(loadSettings().width).toBe(100);
+
+    unmount();
+  });
+
+  it("opens the snapshots modal with h and shows a seeded snapshot's date", async () => {
+    addTask(getDefaultListId(), "Buy milk");
+    captureSnapshot("2026-08-20");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("h");
+    await delay();
+
+    expect(lastFrame()).toContain("Daily Snapshots");
+    expect(lastFrame()).toContain("2026-08-20");
+
+    unmount();
+  });
+
+  it("closes the snapshots modal with Escape without changing the view", async () => {
+    captureSnapshot("2026-08-20");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("h");
+    await delay();
+    stdin.write("\x1B"); // Escape
+    await delay();
+
+    expect(lastFrame()).not.toContain("Daily Snapshots");
+
+    unmount();
+  });
+
+  it("views a selected snapshot read-only and shows the snapshot title instead of the progress bar", async () => {
+    addTask(getDefaultListId(), "Buy milk");
+    captureSnapshot("2026-08-20");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("h");
+    await delay();
+    stdin.write("\r"); // view the (only) snapshot
+    await delay();
+
+    expect(lastFrame()).toContain("Snapshot - 2026-08-20");
+    expect(lastFrame()).not.toContain("Progress");
+    expect(lastFrame()).toContain("Buy milk");
+
+    // mutation keys must be inert while viewing a snapshot
+    stdin.write(" ");
+    await delay();
+    expect(loadTasks(getDefaultListId())[0]?.done).toBe(false);
+
+    unmount();
+  });
+
+  it("returns to the live view from a snapshot with Escape", async () => {
+    addTask(getDefaultListId(), "Buy milk");
+    captureSnapshot("2026-08-20");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("h");
+    await delay();
+    stdin.write("\r");
+    await delay();
+    stdin.write("\x1B"); // Escape back to live view
+    await delay();
+
+    expect(lastFrame()).toContain("Progress");
+    expect(lastFrame()).not.toContain("Snapshot - 2026-08-20");
+
+    unmount();
+  });
+
+  it("deletes a snapshot from the modal after confirming with y", async () => {
+    captureSnapshot("2026-08-20");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("h");
+    await delay();
+    stdin.write("d");
+    await delay();
+    expect(lastFrame()).toContain("(y/n)");
+
+    stdin.write("y");
+    await delay();
+
+    expect(listSnapshots()).toHaveLength(0);
+    expect(lastFrame()).toContain("No snapshots yet.");
 
     unmount();
   });

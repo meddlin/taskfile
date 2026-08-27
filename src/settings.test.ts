@@ -19,16 +19,25 @@ describe("settings", () => {
     fs.rmSync(tempHome, { recursive: true, force: true });
   });
 
+  const DEFAULTS = {
+    width: 120,
+    height: 40,
+    progressAnimation: true,
+    lastActiveListId: null,
+    dailySnapshotsEnabled: true,
+    dailySnapshotRetention: "12-months",
+  };
+
   it("loadSettings returns defaults when no settings file exists", () => {
-    expect(loadSettings()).toEqual({ width: 120, height: 40, progressAnimation: true, lastActiveListId: null });
+    expect(loadSettings()).toEqual(DEFAULTS);
   });
 
   it("saveSettings persists a partial update and merges over the current values", () => {
     saveSettings({ width: 100 });
     const saved = saveSettings({ height: 30 });
 
-    expect(saved).toEqual({ width: 100, height: 30, progressAnimation: true, lastActiveListId: null });
-    expect(loadSettings()).toEqual({ width: 100, height: 30, progressAnimation: true, lastActiveListId: null });
+    expect(saved).toEqual({ ...DEFAULTS, width: 100, height: 30 });
+    expect(loadSettings()).toEqual({ ...DEFAULTS, width: 100, height: 30 });
   });
 
   it("saveSettings persists the lastActiveListId", () => {
@@ -63,6 +72,28 @@ describe("settings", () => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "settings.json"), "not json");
 
-    expect(loadSettings()).toEqual({ width: 120, height: 40, progressAnimation: true, lastActiveListId: null });
+    expect(loadSettings()).toEqual(DEFAULTS);
+  });
+
+  it("saveSettings persists the dailySnapshotsEnabled toggle", () => {
+    const saved = saveSettings({ dailySnapshotsEnabled: false });
+
+    expect(saved).toMatchObject({ dailySnapshotsEnabled: false });
+    expect(loadSettings()).toMatchObject({ dailySnapshotsEnabled: false });
+  });
+
+  it("saveSettings persists the dailySnapshotRetention value", () => {
+    const saved = saveSettings({ dailySnapshotRetention: "1-week" });
+
+    expect(saved).toMatchObject({ dailySnapshotRetention: "1-week" });
+    expect(loadSettings()).toMatchObject({ dailySnapshotRetention: "1-week" });
+  });
+
+  it("falls back to the default retention when the stored value is invalid", () => {
+    const dir = path.join(tempHome, ".taskfile");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "settings.json"), JSON.stringify({ dailySnapshotRetention: "bogus" }));
+
+    expect(loadSettings().dailySnapshotRetention).toBe("12-months");
   });
 });
