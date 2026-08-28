@@ -29,11 +29,11 @@ UI
 
 CI/CD
 
-- [] Run unit tests on every PR
-- [] Deploy to NPM
+- [x] Run unit tests on every PR
+- [] Deploy to NPM (see [docs/deploy.md](./deploy.md))
     - [] Make the project available to install via `npx`
 
-- [] Dependabot
-    - [] version updates
-    - [] malware alerts
-- [] CodeQL
+- [x] Dependabot
+    - [x] version updates
+    - [x] malware alerts
+- [x] CodeQL

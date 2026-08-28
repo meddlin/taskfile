@@ -8,15 +8,23 @@ process.on("warning", (warning) => {
   console.warn(warning);
 });
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { addItem } from "./commands/add.js";
 import { removeItem } from "./commands/remove.js";
 import { listItems } from "./commands/list.js";
 import { runTui } from "./tui/index.js";
 
+const packageDir = dirname(fileURLToPath(import.meta.url));
+const { version } = JSON.parse(readFileSync(join(packageDir, "../package.json"), "utf8")) as {
+  version: string;
+};
+
 const program = new Command();
 
-program.name("taskfile").description("A simple todo list CLI").version("0.1.0");
+program.name("taskfile").description("A simple todo list CLI").version(version);
 
 program
   .command("add <text...>")
