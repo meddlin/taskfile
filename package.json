@@ -1,6 +1,6 @@
 {
   "name": "@rushinglabs/taskfile",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A simple todo list CLI, runnable via npx",
   "main": "./dist/index.js",
   "bin": {
@@ -9,6 +9,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
