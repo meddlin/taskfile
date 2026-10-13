@@ -2,6 +2,18 @@
 
 A simple todo list CLI, runnable via `npx`.
 
+## Install
+
+Download the installer for your platform from the
+[latest release](https://github.com/meddlin/taskfile/releases/latest) — no Node.js required:
+
+- **macOS**: `taskfile-<version>-macos-arm64.pkg` (Apple Silicon) or `…-macos-x64.pkg` (Intel)
+- **Debian/Ubuntu**: `sudo apt install ./taskfile_<version>_amd64.deb` (or `_arm64.deb`)
+- **Windows**: `taskfile-<version>-windows-x64-setup.exe`
+
+Then run `taskfile`. Details, uninstall steps, and how to build installers yourself are in
+[docs/installers.md](docs/installers.md). Or use npm, below.
+
 ## Usage
 
 ```bash

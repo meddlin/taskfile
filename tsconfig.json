@@ -4,6 +4,7 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "jsx": "react-jsx",
+    "types": ["node"],
     "lib": ["ES2020"],
     "outDir": "dist",
     "rootDir": "src",

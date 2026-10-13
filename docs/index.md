@@ -33,6 +33,11 @@ CI/CD
 - [] Deploy to NPM (see [docs/deploy.md](./deploy.md))
     - [] Make the project available to install via `npx`
 
+- [x] Native installers: macOS `.pkg`, Debian `.deb`, Windows `.exe` (see [docs/installers.md](./installers.md))
+    - [x] Script to build them locally (`npm run installers`)
+    - [x] GitHub Action that builds and releases them when a version tag is pushed
+    - [] Code signing / notarization
+
 - [x] Dependabot
     - [x] version updates
     - [x] malware alerts
