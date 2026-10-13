@@ -61,26 +61,82 @@ matching host, because the packaging tools are OS-specific:
 
 Set `TASKFILE_DEB_MAINTAINER="Name <email>"` to override the `.deb`'s Maintainer field.
 
+## Cutting a release by hand
+
+CI is not used for releases right now (see [Building in CI](#building-in-ci)), so installers are
+built on your machine and uploaded to the GitHub Release yourself. Do this after the version-bump
+PR is merged and the tag is pushed (steps 1-4 in [deploy.md](./deploy.md)), replacing `vX.Y.Z`:
+
+```bash
+# 1. Build from exactly what's tagged, on a clean checkout
+git checkout vX.Y.Z
+npm ci
+
+# 2. Build the installers (macOS host: both .pkg files, plus the .deb files if dpkg is installed)
+brew install dpkg                                  # one-time, only needed for the .deb files
+npm run installers -- --platform macos --arch all
+npm run installers -- --platform linux --arch all
+
+# 3. Check them (see "Checking a build" below), then write checksums
+(cd release && shasum -a 256 *.pkg *.deb > SHA256SUMS)   # add *.exe if you have one
+
+# 4. Create the release with generated notes and upload the binaries in one step
+gh release create vX.Y.Z --title "vX.Y.Z" --generate-notes release/*.pkg release/*.deb release/SHA256SUMS
+```
+
+Notes:
+
+- **Windows:** the `.exe` can only be built on a Windows machine with Inno Setup (see the table
+  above). On Windows, run `npm run installers -- --platform windows` there, then copy the file into
+  `release/` before step 3 and add `release/*.exe` to the `gh release create` command (or upload it
+  later with `gh release upload vX.Y.Z path\to\taskfile-X.Y.Z-windows-x64-setup.exe`). Skip it if you
+  don't have a Windows machine; the release is valid without it, but the README and docs mention it.
+- **Pre-release:** add `--prerelease` to `gh release create` for tags like `v1.0.0-rc.1`.
+- **Add to an existing release:** if the release already exists, use
+  `gh release upload vX.Y.Z release/* --clobber` instead of `gh release create`.
+- **Preview first:** `gh release create ... --draft` creates it unpublished so you can review the
+  notes and attachments on GitHub, then publish from the release page.
+- Re-running `npm run installers` rebuilds `release/` artifacts in place; delete old ones
+  (`rm -rf release`) if the version changed, so you don't upload stale files.
+
+### Checking a build
+
+Before uploading, install what you built (on a matching machine) and confirm it works:
+
+```bash
+# macOS (installs to /usr/local; see "Installing" below to uninstall)
+sudo installer -pkg release/taskfile-X.Y.Z-macos-arm64.pkg -target /
+taskfile --version && taskfile list
+
+# Debian/Ubuntu
+sudo apt install ./release/taskfile_X.Y.Z_amd64.deb
+taskfile --version && taskfile list
+```
+
+This also uses your real `~/.taskfile` database; prefix with `HOME=$(mktemp -d)` for a throwaway one.
+The `.deb` and Windows paths have not been run end to end yet, so treat the first build of each as
+something to verify, not just ship.
+
 ## Building in CI
 
-[`.github/workflows/release-installers.yml`](../.github/workflows/release-installers.yml) runs on:
+[`.github/workflows/release-installers.yml`](../.github/workflows/release-installers.yml) builds all
+installers on macOS, Linux, and Windows runners. **Its automatic tag trigger is currently disabled**
+to save Actions minutes, so it only runs when started manually:
 
-- **Pushing a `v*.*.*` tag** — runs tests, verifies the tag matches `package.json`'s version and is
-  on `main`, builds all installers on macOS, Linux, and Windows runners, smoke-tests each one, then
-  creates the GitHub Release (with generated notes and checksums). Tags with a `-` (e.g.
-  `v1.0.0-rc.1`) are marked as pre-releases. If a release for the tag already exists, the
-  installers are added to it.
-- **Run workflow** (manual, from the Actions tab) — same builds and smoke tests, but nothing is
-  released; the installers are downloadable as workflow artifacts for 14 days. Use this to check a
-  build before tagging.
+- **Run workflow** (Actions tab) — builds and smoke-tests every installer; nothing is released.
+  The installers are downloadable as workflow artifacts for 14 days. This is also the easiest way
+  to get a Windows `.exe` or to verify a `.deb` without a Debian machine. If you pick a tag under
+  *Use workflow from*, it also runs the version/branch checks and creates the GitHub Release.
+- **To turn automatic releases back on**, uncomment the `push: tags: v*.*.*` trigger at the top of
+  the workflow. A pushed tag then runs tests, verifies the tag matches `package.json` and is on
+  `main`, builds, smoke-tests, and creates the release with generated notes and `SHA256SUMS`
+  (tags containing `-` become pre-releases; an existing release gets the installers added).
 
 The **smoke test** is the integration test for this feature. On a fresh runner it installs the real
 artifact the way a user would (`installer -pkg`, `dpkg -i`, or the silent Windows installer), then
 checks that `taskfile --version` matches `package.json`, that `add`/`list` work (exercising the
 bundled runtime and `node:sqlite`), and that uninstalling removes the files (Debian) or the `PATH`
 entry (Windows). It runs only against the runner's own architecture.
-
-See [deploy.md](./deploy.md) for where this fits in the release process.
 
 ## Installing (for users)
 

@@ -1,16 +1,19 @@
 name: Release Installers
 
-# Pushing a tag like v0.2.2 builds native installers (macOS .pkg, Debian .deb, Windows .exe),
-# smoke-tests each one by installing it on a clean runner, and attaches them to a GitHub Release.
+# AUTOMATIC TRIGGER DISABLED to save Actions minutes: this only runs when started by hand from the
+# Actions tab ("Run workflow"). Releases are currently built and uploaded locally; see
+# docs/installers.md ("Cutting a release by hand").
 #
-# Running it by hand from the Actions tab ("Run workflow") does everything except the release:
-# the installers are uploaded as workflow artifacts so a build can be checked before tagging.
-# See docs/installers.md.
+# When started by hand it builds the macOS .pkg, Debian .deb, and Windows .exe, smoke-tests each by
+# installing it on a clean runner, and uploads them as workflow artifacts (nothing is released).
+# If started from a tag ("Use workflow from" -> Tags) it also creates the GitHub Release.
+#
+# To re-enable releasing on every tag push, uncomment the `push` trigger below.
 
 on:
-  push:
-    tags:
-      - "v*.*.*"
+  # push:
+  #   tags:
+  #     - "v*.*.*"
   workflow_dispatch:
 
 permissions:

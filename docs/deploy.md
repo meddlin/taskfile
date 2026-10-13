@@ -22,9 +22,9 @@ gh pr create --title "chore: release vX.Y.Z" --body "..."
 # 2. Merge the PR on GitHub, then sync main locally
 git checkout main && git pull
 
-# 3. Push the tag — CI builds the native installers and creates the GitHub Release
+# 3. Push the tag, build the installers locally, and create the GitHub Release
 git push origin vX.Y.Z
-gh run watch   # optional: follow the "Release Installers" workflow
+# ...then follow "Cutting a release by hand" in docs/installers.md
 
 # 4. Publish to npm
 git checkout vX.Y.Z
@@ -176,24 +176,23 @@ local `v0.2.0` tag pointing at it — remain valid ancestors of `main` after the
 ever switches to squash-merge, the tag would need to be re-created against `main`'s tip after
 merging instead of before.)
 
-### 4. Tag the release (CI creates the GitHub Release)
+### 4. Tag the release and create a GitHub Release with installers
 
 ```bash
 git checkout main && git pull        # main now includes the release commit
 git push origin v0.2.0               # push the tag created back in step 2
 ```
 
-Pushing the tag triggers the [Release Installers](../.github/workflows/release-installers.yml)
-workflow. It re-runs the tests, checks the tag matches `package.json` and is on `main`, builds and
-smoke-tests the macOS/Debian/Windows installers (see [installers.md](./installers.md)), and creates
-the GitHub Release with the installers, a `SHA256SUMS` file, and release notes generated from merged
-PR titles — there's no hand-maintained `CHANGELOG.md` to update. If the workflow fails, fix the
-problem and re-run the failed jobs from the Actions tab; the tag doesn't need to move.
+Then build the native installers on your machine and create the release with generated notes and
+the binaries attached — the commands are in
+[installers.md → Cutting a release by hand](./installers.md#cutting-a-release-by-hand). Release
+notes come from merged PR titles (`--generate-notes`); there's no hand-maintained `CHANGELOG.md`.
 
-Want to check the installers before tagging? Run the workflow manually from the Actions tab
-(*Run workflow* on the release branch) — it builds everything but publishes nothing.
+The [Release Installers](../.github/workflows/release-installers.yml) workflow can do this in CI, but
+its automatic tag trigger is turned off to save Actions minutes (it can still be run manually; see
+[installers.md](./installers.md#building-in-ci)).
 
-Publishing to npm (next step) is still manual and independent of the installers.
+Publishing to npm (next step) is manual and independent of the installers.
 
 ### 5. Publish to npm
 

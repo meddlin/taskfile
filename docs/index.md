@@ -35,7 +35,7 @@ CI/CD
 
 - [x] Native installers: macOS `.pkg`, Debian `.deb`, Windows `.exe` (see [docs/installers.md](./installers.md))
     - [x] Script to build them locally (`npm run installers`)
-    - [x] GitHub Action that builds and releases them when a version tag is pushed
+    - [x] GitHub Action that builds, smoke-tests, and releases them (manual-run only for now; tag trigger disabled to save Actions minutes)
     - [] Code signing / notarization
 
 - [x] Dependabot
