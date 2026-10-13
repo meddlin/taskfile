@@ -18,6 +18,12 @@ rather than the `commands/*.ts` wrappers, since those `console.log`/`console.err
 corrupt Ink's full-screen render. Keybindings: arrows/`j`/`k` to navigate, `space`/`enter` to toggle
 done, `a` to add, `d`/`x` to delete (asks `y`/`n` to confirm), `q`/`Esc` to quit.
 
+Native installers (macOS `.pkg`, Debian `.deb`, Windows `.exe`) are built by `scripts/installers/`
+(run `npm run installers`, output in the ignored `release/` directory) and, optionally, by
+`.github/workflows/release-installers.yml` (manual-dispatch only for now; the tag trigger is
+commented out to save Actions minutes). Releases are currently built and uploaded by hand — see
+`docs/installers.md`.
+
 ## Build, Test, and Development Commands
 
 - `npm install` installs dependencies from `package-lock.json`; use Node.js 22.5 or newer.

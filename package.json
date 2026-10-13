@@ -15,6 +15,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
+    "installers": "tsx scripts/installers/build.ts",
     "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
