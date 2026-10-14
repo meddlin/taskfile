@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactElement } from "react";
-import { useApp, useInput } from "ink";
+import { useApp, useInput, useWindowSize } from "ink";
 import { Frame } from "./Frame.js";
 import { TodosPage } from "./TodosPage.js";
 import { SettingsPage } from "./SettingsPage.js";
 import { AddTaskInput } from "./AddTaskInput.js";
 import { SnapshotsModal } from "./SnapshotsModal.js";
 import { SnapshotDetailView } from "./SnapshotDetailView.js";
+import { fitFrameToWindow } from "./frameSize.js";
 import type { Page } from "./Sidebar.js";
 import { loadSettings, saveSettings, type Settings } from "../settings.js";
 import { computeProgress, createList, loadLists, loadTasks, renameList, type List } from "../store.js";
@@ -40,6 +41,7 @@ export function App(): ReactElement {
   const { exit } = useApp();
   const [lists, setLists] = useState<List[]>(() => loadLists());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  const frameSize = fitFrameToWindow(settings, useWindowSize());
   const [page, setPage] = useState<Page>(() => {
     const savedId = settings.lastActiveListId;
     const match = savedId !== null && lists.some((list) => list.id === savedId);
@@ -228,8 +230,8 @@ export function App(): ReactElement {
     <Frame
       message={message}
       hint={hint}
-      width={settings.width}
-      height={settings.height}
+      width={frameSize.width}
+      height={frameSize.height}
       lists={lists}
       activePage={page}
       progress={progress}
