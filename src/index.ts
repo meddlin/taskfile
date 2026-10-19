@@ -8,7 +8,6 @@ process.on("warning", (warning) => {
   console.warn(warning);
 });
 
-import "./production-env.js"; // must stay first: sets NODE_ENV before react is loaded
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
