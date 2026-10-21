@@ -242,6 +242,29 @@ export function renameList(id: number, name: string): ListUpdateResult {
   return { status: "ok", list: { ...rowToList(row), name: trimmed } };
 }
 
+// Deletes a list and every task in it. The last remaining list can't be deleted: the app always
+// needs at least one list to land on.
+export function deleteList(id: number): ListUpdateResult {
+  const row = getDb().prepare("SELECT id, name, createdAt FROM lists WHERE id = ?").get(id) as unknown as
+    | ListRow
+    | undefined;
+
+  if (!row) {
+    return { status: "not-found" };
+  }
+
+  if (loadLists().length <= 1) {
+    return { status: "blocked", reason: "Can't delete the only list." };
+  }
+
+  // Sub-items reference their parent task, so they go first to keep the foreign key satisfied.
+  getDb().prepare("DELETE FROM tasks WHERE listId = ? AND parentId IS NOT NULL").run(id);
+  getDb().prepare("DELETE FROM tasks WHERE listId = ?").run(id);
+  getDb().prepare("DELETE FROM lists WHERE id = ?").run(id);
+
+  return { status: "ok", list: rowToList(row) };
+}
+
 export function getDefaultListId(): number {
   return loadLists()[0]!.id;
 }

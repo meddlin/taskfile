@@ -19,7 +19,7 @@ import { EditTaskModal, type EditFocus } from "./EditTaskModal.js";
 type Mode = "list" | "add" | "confirm-delete" | "edit" | "rename-list";
 
 const LIST_HINT =
-  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · r rename list · ←/→ nav focus · Tab switch · Ctrl+N new list · q quit";
+  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · r rename list · D delete list · ←/→ nav focus · Tab switch · Ctrl+N new list · q quit";
 const EDIT_HINT = "tab cycle · space toggle priority · enter save · esc cancel";
 const RENAME_LIST_HINT = "enter save · esc cancel";
 

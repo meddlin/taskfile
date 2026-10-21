@@ -4,7 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import { render } from "ink-testing-library";
 import { App } from "./App.js";
-import { addTask, getDefaultListId, loadLists, loadTasks, toggleTask } from "../store.js";
+import { addTask, createList, getDefaultListId, loadLists, loadTasks, toggleTask } from "../store.js";
 import { loadSettings } from "../settings.js";
 import { captureSnapshot, listSnapshots } from "../snapshots.js";
 
@@ -317,6 +317,100 @@ describe("App", () => {
     expect(loadLists()[0]?.name).toBe("Personal");
     expect(lastFrame()).toContain("Personal");
     expect(lastFrame()).not.toContain("Todos");
+
+    unmount();
+  });
+
+  it("deletes the current list and its tasks with D after confirming, landing on the neighboring list", async () => {
+    const other = createList("Other list");
+    addTask(other.id, "Doomed task");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\t"); // Todos -> Other list
+    await delay();
+    stdin.write("D");
+    await delay();
+
+    expect(lastFrame()).toContain('Delete list "Other list" and its 1 task(s)? (y/n)');
+
+    stdin.write("y");
+    await delay();
+
+    expect(loadLists().map((l) => l.name)).toEqual(["Todos"]);
+    expect(loadTasks(other.id)).toEqual([]);
+    expect(lastFrame()).not.toContain("Other list");
+    expect(lastFrame()).not.toContain("Delete list");
+    expect(lastFrame()).toContain("No tasks yet. Press a to add one.");
+
+    unmount();
+  });
+
+  it("deletes a list from the sidebar with D without entering its content", async () => {
+    createList("Other list");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\x1B[D"); // Left -> nav focus
+    await delay();
+    stdin.write("D");
+    await delay();
+    stdin.write("\r");
+    await delay();
+
+    expect(loadLists().map((l) => l.name)).toEqual(["Other list"]);
+
+    unmount();
+  });
+
+  it("keeps the list when the delete-list confirmation is declined", async () => {
+    createList("Other list");
+    addTask(getDefaultListId(), "Precious");
+
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("D");
+    await delay();
+    stdin.write("n");
+    await delay();
+
+    expect(loadLists().map((l) => l.name)).toEqual(["Todos", "Other list"]);
+    expect(loadTasks(getDefaultListId())).toHaveLength(1);
+    expect(lastFrame()).not.toContain("Delete list");
+    expect(lastFrame()).toContain("Precious");
+
+    unmount();
+  });
+
+  it("refuses to delete the only list and shows a message", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("D");
+    await delay();
+
+    expect(lastFrame()).toContain("Can't delete the only list.");
+    expect(lastFrame()).not.toContain("Delete list");
+    expect(loadLists()).toHaveLength(1);
+
+    unmount();
+  });
+
+  it("does not trigger list deletion with D while typing in add mode", async () => {
+    createList("Other list");
+
+    const { stdin, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("a");
+    await delay();
+    stdin.write("D");
+    await delay();
+
+    expect(loadLists()).toHaveLength(2);
 
     unmount();
   });

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from "react";
-import { useApp, useInput, useWindowSize } from "ink";
+import { Text, useApp, useInput, useWindowSize } from "ink";
 import { Frame } from "./Frame.js";
 import { TodosPage } from "./TodosPage.js";
 import { SettingsPage } from "./SettingsPage.js";
@@ -9,7 +9,7 @@ import { SnapshotDetailView } from "./SnapshotDetailView.js";
 import { fitFrameToWindow } from "./frameSize.js";
 import type { Page } from "./Sidebar.js";
 import { loadSettings, saveSettings, type Settings } from "../settings.js";
-import { computeProgress, createList, loadLists, loadTasks, renameList, type List } from "../store.js";
+import { computeProgress, createList, deleteList, loadLists, loadTasks, renameList, type List } from "../store.js";
 import {
   deleteSnapshot,
   listSnapshots,
@@ -18,10 +18,11 @@ import {
   type SnapshotSummary,
 } from "../snapshots.js";
 
-type Mode = "normal" | "new-list" | "nav-rename-list" | "snapshots";
+type Mode = "normal" | "new-list" | "nav-rename-list" | "confirm-delete-list" | "snapshots";
 type Focus = "nav" | "content";
 
-const NAV_HINT = "↑/↓ cycle pages · ←/→ switch focus · r rename list · Tab switch · Ctrl+N new list · h snapshots · q quit";
+const NAV_HINT = "↑/↓ cycle pages · ←/→ switch focus · r rename list · D delete list · Tab switch · Ctrl+N new list · h snapshots · q quit";
+const CONFIRM_DELETE_LIST_HINT = "y/enter confirm delete · n/esc cancel";
 const SNAPSHOT_MODAL_HINT = "↑/k ↓/j select · enter/space view · d delete · esc close";
 const SNAPSHOT_CONFIRM_DELETE_HINT = "y confirm delete · n/esc cancel";
 const VIEW_SNAPSHOT_HINT = "esc/h back to live view";
@@ -62,6 +63,7 @@ export function App(): ReactElement {
   const [snapshotModalMode, setSnapshotModalMode] = useState<"list" | "confirm-delete">("list");
   const [pendingDeleteSnapshotId, setPendingDeleteSnapshotId] = useState<number | undefined>(undefined);
   const [viewingSnapshot, setViewingSnapshot] = useState<SnapshotDetail | undefined>(undefined);
+  const [pendingDeleteListId, setPendingDeleteListId] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (page.type === "list") {
@@ -74,6 +76,23 @@ export function App(): ReactElement {
   }
 
   const renamingListId = mode === "nav-rename-list" && page.type === "list" ? page.listId : undefined;
+
+  const pendingDeleteList = mode === "confirm-delete-list" ? lists.find((list) => list.id === pendingDeleteListId) : undefined;
+  const pendingDeleteTaskCount = pendingDeleteList ? loadTasks(pendingDeleteList.id).length : 0;
+
+  function confirmDeleteList(listId: number): void {
+    const index = lists.findIndex((list) => list.id === listId);
+    const result = deleteList(listId);
+    if (result.status === "blocked") {
+      setMessage(result.reason);
+    } else if (result.status === "ok") {
+      const nextLists = loadLists();
+      setLists(nextLists);
+      // Land on the list that took the deleted one's place (or the new last list).
+      const neighbor = nextLists[Math.min(Math.max(index, 0), nextLists.length - 1)]!;
+      setPage({ type: "list", listId: neighbor.id });
+    }
+  }
 
   function cyclePage(delta: number): void {
     const pages = buildPages(lists);
@@ -158,6 +177,20 @@ export function App(): ReactElement {
       return;
     }
 
+    if (mode === "confirm-delete-list") {
+      if (input === "y" || key.return) {
+        if (pendingDeleteListId !== undefined) {
+          confirmDeleteList(pendingDeleteListId);
+        }
+      } else if (!(input === "n" || key.escape)) {
+        return;
+      }
+      setPendingDeleteListId(undefined);
+      setMode("normal");
+      setHint(NAV_HINT);
+      return;
+    }
+
     if (mode === "new-list" || mode === "nav-rename-list") {
       if (key.escape) {
         setMode("normal");
@@ -177,6 +210,18 @@ export function App(): ReactElement {
       setSnapshotModalMode("list");
       setMode("snapshots");
       setHint(SNAPSHOT_MODAL_HINT);
+      return;
+    }
+
+    if (input === "D" && page.type === "list") {
+      setMessage(undefined);
+      if (lists.length <= 1) {
+        setMessage("Can't delete the only list.");
+        return;
+      }
+      setPendingDeleteListId(page.listId);
+      setMode("confirm-delete-list");
+      setHint(CONFIRM_DELETE_LIST_HINT);
       return;
     }
 
@@ -284,6 +329,11 @@ export function App(): ReactElement {
             setMode("normal");
           }}
         />
+      )}
+      {pendingDeleteList && (
+        <Text>
+          Delete list "{pendingDeleteList.name}" and its {pendingDeleteTaskCount} task(s)? (y/n)
+        </Text>
       )}
       {renamingListId !== undefined && (
         <AddTaskInput

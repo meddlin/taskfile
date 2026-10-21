@@ -7,6 +7,7 @@ import {
   addTask,
   computeProgress,
   createList,
+  deleteList,
   getDefaultListId,
   hasSubItems,
   loadLists,
@@ -338,6 +339,34 @@ describe("store", () => {
     const result = renameList(listId, "   ");
 
     expect(result).toEqual({ status: "blocked", reason: "List name cannot be empty." });
+  });
+
+  it("deleteList removes the list along with its tasks and sub-items, leaving other lists intact", () => {
+    const other = createList("Other list");
+    const parent = addTask(other.id, "Parent");
+    addTask(other.id, "Child", parent.id);
+    addTask(listId, "Keep me");
+
+    const result = deleteList(other.id);
+
+    expect(result).toMatchObject({ status: "ok", list: { id: other.id, name: "Other list" } });
+    expect(loadLists().map((l) => l.name)).toEqual(["Todos"]);
+    expect(loadTasks(other.id)).toEqual([]);
+    expect(loadTasks(listId).map((t) => t.text)).toEqual(["Keep me"]);
+  });
+
+  it("deleteList returns not-found for an unknown id", () => {
+    createList("Other list");
+
+    expect(deleteList(999)).toEqual({ status: "not-found" });
+  });
+
+  it("deleteList blocks deleting the only remaining list", () => {
+    addTask(listId, "Survivor");
+
+    expect(deleteList(listId)).toEqual({ status: "blocked", reason: "Can't delete the only list." });
+    expect(loadLists()).toHaveLength(1);
+    expect(loadTasks(listId)).toHaveLength(1);
   });
 
   it("getDefaultListId returns the id of the first created list", () => {
