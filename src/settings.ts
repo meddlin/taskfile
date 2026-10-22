@@ -13,6 +13,19 @@ export const SNAPSHOT_RETENTION_OPTIONS: readonly SnapshotRetention[] = [
   "forever",
 ];
 
+// Values are ANSI color names, so the terminal's own palette decides the exact shade.
+// "default" leaves the terminal's background untouched.
+export type BackgroundColor = "default" | "black" | "blackBright" | "blue" | "green" | "magenta";
+
+export const BACKGROUND_OPTIONS: readonly BackgroundColor[] = [
+  "default",
+  "black",
+  "blackBright",
+  "blue",
+  "green",
+  "magenta",
+];
+
 export interface Settings {
   width: number;
   height: number;
@@ -20,6 +33,8 @@ export interface Settings {
   lastActiveListId: number | null;
   dailySnapshotsEnabled: boolean;
   dailySnapshotRetention: SnapshotRetention;
+  background: BackgroundColor;
+  backgroundImage: string | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -29,6 +44,8 @@ const DEFAULT_SETTINGS: Settings = {
   lastActiveListId: null,
   dailySnapshotsEnabled: true,
   dailySnapshotRetention: "12-months",
+  background: "default",
+  backgroundImage: null,
 };
 
 const WIDTH_RANGE = { min: 40, max: 300 };
@@ -36,6 +53,10 @@ const HEIGHT_RANGE = { min: 10, max: 100 };
 
 function isValidRetention(value: unknown): value is SnapshotRetention {
   return typeof value === "string" && (SNAPSHOT_RETENTION_OPTIONS as readonly string[]).includes(value);
+}
+
+function isValidBackground(value: unknown): value is BackgroundColor {
+  return typeof value === "string" && (BACKGROUND_OPTIONS as readonly string[]).includes(value);
 }
 
 function clamp(value: number, range: { min: number; max: number }): number {
@@ -72,6 +93,11 @@ export function loadSettings(): Settings {
       dailySnapshotRetention: isValidRetention(parsed.dailySnapshotRetention)
         ? parsed.dailySnapshotRetention
         : DEFAULT_SETTINGS.dailySnapshotRetention,
+      background: isValidBackground(parsed.background) ? parsed.background : DEFAULT_SETTINGS.background,
+      backgroundImage:
+        typeof parsed.backgroundImage === "string" && parsed.backgroundImage.length > 0
+          ? parsed.backgroundImage
+          : DEFAULT_SETTINGS.backgroundImage,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -89,6 +115,8 @@ export function saveSettings(update: Partial<Settings>): Settings {
       update.dailySnapshotsEnabled !== undefined ? update.dailySnapshotsEnabled : current.dailySnapshotsEnabled,
     dailySnapshotRetention:
       update.dailySnapshotRetention !== undefined ? update.dailySnapshotRetention : current.dailySnapshotRetention,
+    background: update.background !== undefined && isValidBackground(update.background) ? update.background : current.background,
+    backgroundImage: update.backgroundImage !== undefined ? update.backgroundImage : current.backgroundImage,
   };
 
   const storeDir = getStoreDir();

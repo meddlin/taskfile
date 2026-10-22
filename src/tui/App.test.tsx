@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { PNG } from "pngjs";
 import { render } from "ink-testing-library";
 import { App } from "./App.js";
 import { addTask, createList, getDefaultListId, loadLists, loadTasks, toggleTask } from "../store.js";
-import { loadSettings } from "../settings.js";
+import { loadSettings, saveSettings } from "../settings.js";
 import { captureSnapshot, listSnapshots } from "../snapshots.js";
 
 function delay(ms = 50): Promise<void> {
@@ -757,6 +758,72 @@ describe("App", () => {
     await delay();
 
     expect(loadSettings().width).toBe(100);
+
+    unmount();
+  });
+
+  it("cycles the background from the Settings page and persists it", async () => {
+    const { stdin, lastFrame, unmount } = render(<App />);
+    await delay();
+
+    stdin.write("\t"); // switch to Settings
+    await delay();
+    stdin.write("\x1B[C"); // focus content
+    await delay();
+    for (let i = 0; i < 5; i++) {
+      stdin.write("j"); // down to Background
+      await delay();
+    }
+    expect(lastFrame()).toContain("Background: Terminal default");
+    stdin.write(" ");
+    await delay();
+
+    expect(lastFrame()).toContain("Background: Black");
+    expect(loadSettings().background).toBe("black");
+
+    unmount();
+  });
+
+  it("shows a low-fidelity backdrop and a kitty warning when a background image is set", async () => {
+    const file = path.join(process.env.HOME!, "bg.png");
+    const png = new PNG({ width: 4, height: 4 });
+    png.data.fill(200);
+    fs.writeFileSync(file, PNG.sync.write(png));
+    saveSettings({ backgroundImage: file });
+
+    const { lastFrame, unmount } = render(<App />);
+    await delay();
+
+    expect(lastFrame()).toContain("▀");
+    expect(lastFrame()).toContain("doesn't support kitty graphics");
+
+    unmount();
+  });
+
+  it("warns instead of crashing when the background image can't be loaded", async () => {
+    saveSettings({ backgroundImage: "/nonexistent/bg.png" });
+
+    const { lastFrame, unmount } = render(<App />);
+    await delay();
+
+    expect(lastFrame()).toContain("Could not load background image");
+    expect(lastFrame()).not.toContain("▀");
+
+    unmount();
+  });
+
+  it("does not draw a half-block backdrop when kitty graphics are available", async () => {
+    const file = path.join(process.env.HOME!, "bg.png");
+    const png = new PNG({ width: 4, height: 4 });
+    png.data.fill(200);
+    fs.writeFileSync(file, PNG.sync.write(png));
+    saveSettings({ backgroundImage: file });
+
+    const { lastFrame, unmount } = render(<App graphics="kitty" />);
+    await delay();
+
+    expect(lastFrame()).not.toContain("▀");
+    expect(lastFrame()).not.toContain("kitty graphics");
 
     unmount();
   });

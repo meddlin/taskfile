@@ -26,6 +26,8 @@ describe("settings", () => {
     lastActiveListId: null,
     dailySnapshotsEnabled: true,
     dailySnapshotRetention: "12-months",
+    background: "default",
+    backgroundImage: null,
   };
 
   it("loadSettings returns defaults when no settings file exists", () => {
@@ -95,5 +97,25 @@ describe("settings", () => {
     fs.writeFileSync(path.join(dir, "settings.json"), JSON.stringify({ dailySnapshotRetention: "bogus" }));
 
     expect(loadSettings().dailySnapshotRetention).toBe("12-months");
+  });
+
+  it("saveSettings persists the background and ignores invalid values", () => {
+    expect(saveSettings({ background: "blue" }).background).toBe("blue");
+    expect(loadSettings().background).toBe("blue");
+    expect(saveSettings({ background: "hotpink" as never }).background).toBe("blue");
+  });
+
+  it("falls back to the default background when the stored value is invalid", () => {
+    const dir = path.join(tempHome, ".taskfile");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "settings.json"), JSON.stringify({ background: "bogus" }));
+
+    expect(loadSettings().background).toBe("default");
+  });
+
+  it("saveSettings persists and clears the background image path", () => {
+    expect(saveSettings({ backgroundImage: "/tmp/a.png" }).backgroundImage).toBe("/tmp/a.png");
+    expect(loadSettings().backgroundImage).toBe("/tmp/a.png");
+    expect(saveSettings({ backgroundImage: null }).backgroundImage).toBeNull();
   });
 });
