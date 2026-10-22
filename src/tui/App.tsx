@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { Text, useApp, useInput, useWindowSize } from "ink";
 import { Frame } from "./Frame.js";
 import { TodosPage } from "./TodosPage.js";
@@ -6,6 +6,8 @@ import { SettingsPage } from "./SettingsPage.js";
 import { AddTaskInput } from "./AddTaskInput.js";
 import { SnapshotsModal } from "./SnapshotsModal.js";
 import { SnapshotDetailView } from "./SnapshotDetailView.js";
+import { BackgroundLayer, type GraphicsSupport } from "./BackgroundLayer.js";
+import { loadBackgroundImage, type BackgroundImage } from "./backgroundImage.js";
 import { fitFrameToWindow } from "./frameSize.js";
 import type { Page } from "./Sidebar.js";
 import { loadSettings, saveSettings, type Settings } from "../settings.js";
@@ -38,11 +40,22 @@ function pagesEqual(a: Page, b: Page): boolean {
   return a.listId === b.listId;
 }
 
-export function App(): ReactElement {
+export function App({ graphics = "none" }: { graphics?: GraphicsSupport } = {}): ReactElement {
   const { exit } = useApp();
   const [lists, setLists] = useState<List[]>(() => loadLists());
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const frameSize = fitFrameToWindow(settings, useWindowSize());
+  const background = useMemo<{ image?: BackgroundImage; notice?: string }>(() => {
+    if (settings.backgroundImage === null) return {};
+    try {
+      const image = loadBackgroundImage(settings.backgroundImage);
+      return graphics === "kitty"
+        ? { image }
+        : { image, notice: "This terminal doesn't support kitty graphics; showing a low-fidelity backdrop." };
+    } catch (error) {
+      return { notice: error instanceof Error ? error.message : String(error) };
+    }
+  }, [settings.backgroundImage, graphics]);
   const [page, setPage] = useState<Page>(() => {
     const savedId = settings.lastActiveListId;
     const match = savedId !== null && lists.some((list) => list.id === savedId);
@@ -51,7 +64,7 @@ export function App(): ReactElement {
   const [mode, setMode] = useState<Mode>("normal");
   const [focus, setFocus] = useState<Focus>("content");
   const [navLocked, setNavLocked] = useState(false);
-  const [message, setMessage] = useState<string | undefined>(undefined);
+  const [message, setMessage] = useState<string | undefined>(background.notice);
   const [hint, setHint] = useState<string>("");
   const [progress, setProgress] = useState<{ done: number; total: number }>(() => {
     const activeListId = page.type === "list" ? page.listId : lists[0]!.id;
@@ -283,6 +296,12 @@ export function App(): ReactElement {
       progressAnimated={settings.progressAnimation}
       navFocused={focus === "nav"}
       snapshotDate={viewingSnapshot?.date}
+      background={background.image ? "default" : settings.background}
+      backdrop={
+        background.image ? (
+          <BackgroundLayer image={background.image} graphics={graphics} width={frameSize.width} height={frameSize.height} />
+        ) : undefined
+      }
     >
       {lists.map((list) => {
         const visible = !viewingSnapshot && mode === "normal" && page.type === "list" && page.listId === list.id;
@@ -305,6 +324,7 @@ export function App(): ReactElement {
         visible={!viewingSnapshot && mode === "normal" && page.type === "settings"}
         active={!viewingSnapshot && mode === "normal" && page.type === "settings" && focus === "content"}
         settings={settings}
+        backgroundNotice={background.notice}
         onSettingsChange={setSettings}
         setMessage={setMessage}
         onNavLockChange={setNavLocked}

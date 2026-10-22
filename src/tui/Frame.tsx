@@ -5,6 +5,7 @@ import { MessageArea } from "./MessageArea.js";
 import { ProgressBar } from "./ProgressBar.js";
 import { Sidebar, type Page } from "./Sidebar.js";
 import { theme } from "./theme.js";
+import type { BackgroundColor } from "../settings.js";
 import type { List } from "../store.js";
 
 const BORDER_WIDTH = 1; // each side
@@ -25,6 +26,8 @@ export function Frame({
   progressAnimated,
   navFocused,
   snapshotDate,
+  background = "default",
+  backdrop,
 }: {
   children: ReactNode;
   message?: string;
@@ -37,6 +40,8 @@ export function Frame({
   progressAnimated: boolean;
   navFocused: boolean;
   snapshotDate?: string;
+  background?: BackgroundColor;
+  backdrop?: ReactNode;
 }): ReactElement {
   const innerWidth = width - BORDER_WIDTH * 2 - PADDING_X * 2;
   const contentWidth = innerWidth - SIDEBAR_WIDTH;
@@ -46,7 +51,10 @@ export function Frame({
   const progressBarWidth = Math.max(innerWidth - titleWidth - TITLE_SEPARATOR.length, 0);
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={theme.accent} width={width} height={height} paddingX={PADDING_X}>
+    <Box flexDirection="column" borderStyle="round" borderColor={theme.accent} width={width} height={height} paddingX={PADDING_X}
+      backgroundColor={background === "default" ? undefined : background}
+    >
+      {backdrop}
       <Box flexDirection="row">
         <Text bold color={theme.accent}>
           {TITLE.padEnd(titleWidth, " ")}

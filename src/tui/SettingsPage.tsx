@@ -2,12 +2,20 @@ import { useEffect, useState, type ReactElement } from "react";
 import { Box, Text, useApp, useInput } from "ink";
 import TextInput from "ink-text-input";
 import { pruneSnapshots } from "../snapshots.js";
-import { saveSettings, SNAPSHOT_RETENTION_OPTIONS, type Settings, type SnapshotRetention } from "../settings.js";
+import {
+  BACKGROUND_OPTIONS,
+  saveSettings,
+  SNAPSHOT_RETENTION_OPTIONS,
+  type BackgroundColor,
+  type Settings,
+  type SnapshotRetention,
+} from "../settings.js";
 
 type Mode = "view" | "edit";
 
 type FieldDescriptor =
   | { key: "width" | "height"; label: string; type: "number" }
+  | { key: "backgroundImage"; label: string; type: "text" }
   | { key: "progressAnimation" | "dailySnapshotsEnabled"; label: string; type: "boolean" }
   | {
       key: "dailySnapshotRetention";
@@ -15,6 +23,13 @@ type FieldDescriptor =
       type: "select";
       options: readonly SnapshotRetention[];
       formatOption: (value: SnapshotRetention) => string;
+    }
+  | {
+      key: "background";
+      label: string;
+      type: "select";
+      options: readonly BackgroundColor[];
+      formatOption: (value: BackgroundColor) => string;
     };
 
 const VIEW_HINT = "↑/k ↓/j select · enter edit · space toggle · ←/→ nav focus · Tab lists · Ctrl+N new list · q quit";
@@ -29,6 +44,15 @@ const RETENTION_LABELS: Record<SnapshotRetention, string> = {
   forever: "Forever",
 };
 
+const BACKGROUND_LABELS: Record<BackgroundColor, string> = {
+  default: "Terminal default",
+  black: "Black",
+  blackBright: "Gray",
+  blue: "Blue",
+  green: "Green",
+  magenta: "Magenta",
+};
+
 const FIELDS: FieldDescriptor[] = [
   { key: "width", label: "Window width", type: "number" },
   { key: "height", label: "Window height", type: "number" },
@@ -41,12 +65,21 @@ const FIELDS: FieldDescriptor[] = [
     options: SNAPSHOT_RETENTION_OPTIONS,
     formatOption: (value) => RETENTION_LABELS[value],
   },
+  {
+    key: "background",
+    label: "Background",
+    type: "select",
+    options: BACKGROUND_OPTIONS,
+    formatOption: (value) => BACKGROUND_LABELS[value],
+  },
+  { key: "backgroundImage", label: "Background image (PNG path)", type: "text" },
 ];
 
 export function SettingsPage({
   visible,
   active,
   settings,
+  backgroundNotice,
   onSettingsChange,
   setMessage,
   onNavLockChange,
@@ -55,6 +88,7 @@ export function SettingsPage({
   visible: boolean;
   active: boolean;
   settings: Settings;
+  backgroundNotice?: string;
   onSettingsChange: (next: Settings) => void;
   setMessage: (message: string | undefined) => void;
   onNavLockChange: (locked: boolean) => void;
@@ -108,17 +142,19 @@ export function SettingsPage({
       }
 
       if (field.type === "select" && (input === " " || key.return)) {
-        const currentValue = settings[field.key];
-        const currentOptionIndex = field.options.indexOf(currentValue);
-        const nextValue = field.options[(currentOptionIndex + 1) % field.options.length]!;
+        const options: readonly string[] = field.options;
+        const currentOptionIndex = options.indexOf(settings[field.key]);
+        const nextValue = options[(currentOptionIndex + 1) % options.length]!;
         const next = saveSettings({ [field.key]: nextValue } as Partial<Settings>);
         onSettingsChange(next);
-        pruneSnapshots(nextValue);
+        if (field.key === "dailySnapshotRetention") {
+          pruneSnapshots(nextValue as SnapshotRetention);
+        }
         return;
       }
 
       if (key.return) {
-        setEditValue("");
+        setEditValue(field.type === "text" ? (settings[field.key] ?? "") : "");
         setMode("edit");
       }
     },
@@ -126,7 +162,17 @@ export function SettingsPage({
   );
 
   function submitEdit(text: string): void {
-    const field = FIELDS[selectedField]!.key;
+    const descriptor = FIELDS[selectedField]!;
+
+    if (descriptor.type === "text") {
+      const trimmed = text.trim();
+      onSettingsChange(saveSettings({ [descriptor.key]: trimmed === "" ? null : trimmed }));
+      setMessage(trimmed === "" ? "Background image cleared." : "Saved.");
+      setMode("view");
+      return;
+    }
+
+    const field = descriptor.key;
     const parsed = Number.parseInt(text, 10);
 
     if (Number.isNaN(parsed)) {
@@ -169,12 +215,13 @@ export function SettingsPage({
           return (
             <Box key={field.key}>
               <Text inverse={isSelected}>
-                {field.label}: {field.formatOption(value)}
+                {field.label}: {(field.formatOption as (value: string) => string)(value)}
               </Text>
             </Box>
           );
         }
 
+        const shown = field.type === "text" ? (settings[field.key] ?? "None") : settings[field.key];
         return (
           <Box key={field.key}>
             <Text inverse={isSelected}>{field.label}: </Text>
@@ -183,14 +230,20 @@ export function SettingsPage({
                 value={editValue}
                 onChange={setEditValue}
                 onSubmit={submitEdit}
-                placeholder={String(settings[field.key])}
+                placeholder={String(shown)}
               />
             ) : (
-              <Text>{settings[field.key]}</Text>
+              <Text>{shown}</Text>
             )}
           </Box>
         );
       })}
+      {backgroundNotice ? (
+        <>
+          <Text> </Text>
+          <Text color="yellow">⚠ {backgroundNotice}</Text>
+        </>
+      ) : null}
     </Box>
   );
 }

@@ -18,6 +18,11 @@ rather than the `commands/*.ts` wrappers, since those `console.log`/`console.err
 corrupt Ink's full-screen render. Keybindings: arrows/`j`/`k` to navigate, `space`/`enter` to toggle
 done, `a` to add, `d`/`x` to delete (asks `y`/`n` to confirm), `q`/`Esc` to quit.
 
+The Settings page can set a background image (PNG path, `src/tui/backgroundImage.ts`). `tui/index.tsx`
+probes the terminal for the kitty graphics protocol before rendering; if supported, the image is
+placed under the text (`z=-1`) by `BackgroundLayer.tsx`, otherwise a dimmed half-block (`▀`)
+backdrop is drawn in the frame's empty space and a warning is shown.
+
 Native installers (macOS `.pkg`, Debian `.deb`, Windows `.exe`) are built by `scripts/installers/`
 (run `npm run installers`, output in the ignored `release/` directory) and, optionally, by
 `.github/workflows/release-installers.yml` (manual-dispatch only for now; the tag trigger is
