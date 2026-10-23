@@ -41,4 +41,4 @@ CI/CD
 - [x] Dependabot
     - [x] version updates
     - [x] malware alerts
-- [x] CodeQL
+- [x] Opengrep (`.github/workflows/opengrep.yml`)
