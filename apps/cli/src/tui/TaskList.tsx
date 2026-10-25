@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { Box, Text } from "ink";
+import { STATUS_LABELS } from "../board.js";
 import type { Task } from "../store.js";
 
 const TWINKLE_FRAMES = ["yellow", "yellowBright", "white", "yellowBright"] as const;
@@ -32,6 +33,7 @@ export function TaskList({ tasks, selectedIndex }: { tasks: Task[]; selectedInde
             <Text inverse={selected} strikethrough={task.done}>
               {" " + label}
             </Text>
+            {task.status !== null && <Text dimColor>{` [${STATUS_LABELS[task.status]}]`}</Text>}
           </Box>
         );
       })}

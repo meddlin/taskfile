@@ -144,6 +144,7 @@ export function loadSnapshotDetail(id: number): SnapshotDetail | undefined {
       parentId: row.parentSnapshotTaskId,
       priority: !!row.priority,
       listId: row.snapshotListId,
+      status: null,
       createdAt: row.createdAt,
     }));
 

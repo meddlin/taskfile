@@ -3,7 +3,7 @@ import { Box, Text } from "ink";
 import { theme } from "./theme.js";
 import type { List } from "../store.js";
 
-export type Page = { type: "list"; listId: number } | { type: "settings" };
+export type Page = { type: "list"; listId: number } | { type: "board" } | { type: "settings" };
 
 function NavRow({ label, active, contentWidth }: { label: string; active: boolean; contentWidth: number }): ReactElement {
   const truncated = label.length > contentWidth ? `${label.slice(0, Math.max(contentWidth - 1, 0))}…` : label;
@@ -48,6 +48,7 @@ export function Sidebar({
         />
       ))}
       <Box flexGrow={1} />
+      <NavRow label="Board" active={activePage.type === "board"} contentWidth={contentWidth} />
       <NavRow label="Settings" active={activePage.type === "settings"} contentWidth={contentWidth} />
     </Box>
   );
