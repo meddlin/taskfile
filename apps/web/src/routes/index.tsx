@@ -1,6 +1,7 @@
 import { startTransition, useEffect, useOptimistic, useRef, useState, type FormEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { PageNav } from "~/components/PageNav";
+import { ThemeToggle } from "~/components/theme-toggle";
 import { cn } from "~/lib/utils";
 import { STATUS_LABELS, stepStatus } from "~/server/board";
 import {
@@ -191,6 +192,7 @@ function TasksPage() {
             {done}/{tasks.length} done
           </span>
           <PageNav />
+          <ThemeToggle />
         </div>
       </header>
 
