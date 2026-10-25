@@ -38,7 +38,11 @@ export const addTask = createServerFn({ method: "POST" })
   .validator((data: { listId: number; text: string }) => data)
   .handler(async ({ data }): Promise<ActionResult> => toResult((await store()).addTask(data.listId, data.text)));
 
-export const toggleTask = createServerFn({ method: "POST" })
+export const addSubTask = createServerFn({ method: "POST" })
+  .validator((data: { parentId: number; text: string }) => data)
+  .handler(async ({ data }): Promise<ActionResult> => toResult((await store()).addSubTask(data.parentId, data.text)));
+
+export const toggleTask =createServerFn({ method: "POST" })
   .validator((data: { id: number }) => data)
   .handler(async ({ data }): Promise<ActionResult> => toResult((await store()).toggleTask(data.id)));
 
