@@ -104,3 +104,75 @@
     transition-duration: 1ms !important;
   }
 }
+
+/*
+ * Page backgrounds. Each is defined once and reused by the live page (html[data-background] body)
+ * and by the settings page previews (.backdrop-*). Lines and washes derive from the theme's own
+ * colours, and every background has a light and a dark variant.
+ */
+.backdrop-notebook,
+html[data-background="notebook"] body {
+  /* One grid cell; a quadrant line falls every fifth cell. Previews shrink the cell. */
+  --cell: 24px;
+  --grid-minor: color-mix(in oklab, var(--foreground) 5%, transparent);
+  --grid-major: color-mix(in oklab, var(--foreground) 10%, transparent);
+  background-color: oklch(0.985 0.01 90);
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size:
+    calc(var(--cell) * 5) calc(var(--cell) * 5),
+    calc(var(--cell) * 5) calc(var(--cell) * 5),
+    var(--cell) var(--cell),
+    var(--cell) var(--cell);
+}
+
+.dark .backdrop-notebook,
+html.dark[data-background="notebook"] body {
+  --grid-minor: color-mix(in oklab, var(--foreground) 4%, transparent);
+  --grid-major: color-mix(in oklab, var(--foreground) 8%, transparent);
+  background-color: oklch(0.17 0.012 255);
+}
+
+.backdrop-aurora,
+html[data-background="aurora"] body {
+  background-color: oklch(0.985 0.004 250);
+  background-image:
+    radial-gradient(ellipse 70% 60% at 8% 0%, oklch(0.88 0.07 250 / 0.55), transparent 70%),
+    radial-gradient(ellipse 60% 55% at 100% 8%, oklch(0.9 0.06 320 / 0.45), transparent 70%),
+    radial-gradient(ellipse 70% 60% at 55% 110%, oklch(0.92 0.06 175 / 0.5), transparent 70%);
+}
+
+.dark .backdrop-aurora,
+html.dark[data-background="aurora"] body {
+  background-color: oklch(0.15 0.02 270);
+  background-image:
+    radial-gradient(ellipse 70% 60% at 8% 0%, oklch(0.42 0.13 265 / 0.45), transparent 70%),
+    radial-gradient(ellipse 60% 55% at 100% 8%, oklch(0.4 0.12 320 / 0.35), transparent 70%),
+    radial-gradient(ellipse 70% 60% at 55% 110%, oklch(0.4 0.09 185 / 0.4), transparent 70%);
+}
+
+.backdrop-horizon,
+html[data-background="horizon"] body {
+  --horizon-line: color-mix(in oklab, var(--foreground) 12%, transparent);
+  background-color: oklch(0.985 0.008 80);
+  background-image:
+    linear-gradient(transparent calc(62% - 1px), var(--horizon-line) calc(62% - 1px), var(--horizon-line) 62%, transparent 62%),
+    linear-gradient(180deg, oklch(0.96 0.02 240) 0%, oklch(0.985 0.01 85) 62%, oklch(0.95 0.025 65) 100%);
+}
+
+.dark .backdrop-horizon,
+html.dark[data-background="horizon"] body {
+  background-color: oklch(0.15 0.015 260);
+  background-image:
+    linear-gradient(transparent calc(62% - 1px), var(--horizon-line) calc(62% - 1px), var(--horizon-line) 62%, transparent 62%),
+    linear-gradient(180deg, oklch(0.2 0.04 255) 0%, oklch(0.17 0.02 265) 62%, oklch(0.19 0.03 30) 100%);
+}
+
+/* Keep the page background still while content scrolls over it. */
+html[data-background] body {
+  background-attachment: fixed;
+  min-height: 100vh;
+}

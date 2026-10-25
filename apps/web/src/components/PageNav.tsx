@@ -4,7 +4,7 @@ const linkClass =
   "border-b border-transparent py-0.5 text-muted-foreground transition-colors duration-150 hover:text-foreground";
 const activeClass = { className: "border-accent text-accent" };
 
-// Switches between the two views: the per-list task page and the cross-list status board.
+// Switches between the views: the per-list task page, the cross-list status board and settings.
 export function PageNav() {
   return (
     <nav aria-label="Views" className="flex items-center gap-4">
@@ -13,6 +13,9 @@ export function PageNav() {
       </Link>
       <Link to="/board" className={linkClass} activeProps={activeClass}>
         board
+      </Link>
+      <Link to="/settings" className={linkClass} activeProps={activeClass}>
+        settings
       </Link>
     </nav>
   );

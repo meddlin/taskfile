@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { TaskStatus } from "./board";
+import type { DataLocation } from "./data-location";
 import type { List, Task } from "./store";
 
 // Handlers import the store lazily so node:sqlite never reaches the client bundle.
@@ -71,3 +72,8 @@ export const setTaskStatus = createServerFn({ method: "POST" })
 export const sendToBoard = createServerFn({ method: "POST" })
   .validator((data: { id: number }) => data)
   .handler(async ({ data }): Promise<ActionResult> => toResult((await store()).moveToBoard(data.id)));
+
+// Settings page: where the database lives. Imported lazily like the store, to keep node:fs off the client.
+export const getDataLocation = createServerFn({ method: "GET" }).handler(async (): Promise<DataLocation> => {
+  return (await import("./data-location")).describeDataLocation();
+});
