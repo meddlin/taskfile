@@ -81,6 +81,64 @@ describe("TaskStore", () => {
     raw.close();
   });
 
+  describe("status board", () => {
+    it("puts tasks on the board in the column matching their checkbox, across lists", () => {
+      const [list] = store.loadLists();
+      const other = ok(store.createList("Other"));
+      const open = ok(store.addTask(list!.id, "open"));
+      const finished = ok(store.addTask(other.id, "finished"));
+      ok(store.toggleTask(finished.id));
+      ok(store.addTask(list!.id, "off board"));
+
+      expect(ok(store.moveToBoard(open.id)).status).toBe("backlog");
+      expect(ok(store.moveToBoard(finished.id)).status).toBe("done");
+      expect(store.loadBoardTasks().map((t) => t.text)).toEqual(["open", "finished"]);
+    });
+
+    it("keeps an existing column when sent to the board again", () => {
+      const [list] = store.loadLists();
+      const task = ok(store.addTask(list!.id, "a"));
+      ok(store.setStatus(task.id, "in-progress"));
+      expect(ok(store.moveToBoard(task.id)).status).toBe("in-progress");
+    });
+
+    it("syncs the done checkbox with the done column", () => {
+      const [list] = store.loadLists();
+      const task = ok(store.addTask(list!.id, "a"));
+
+      expect(ok(store.setStatus(task.id, "done"))).toMatchObject({ status: "done", done: true });
+      expect(ok(store.setStatus(task.id, "todo"))).toMatchObject({ status: "todo", done: false });
+      expect(ok(store.setStatus(task.id, "done")).done).toBe(true);
+      // Taking it off the board leaves the checkbox alone.
+      expect(ok(store.setStatus(task.id, null))).toMatchObject({ status: null, done: true });
+      expect(store.loadBoardTasks()).toEqual([]);
+    });
+
+    it("reports an unknown task as not-found", () => {
+      expect(store.setStatus(999, "todo")).toEqual({ status: "not-found" });
+      expect(store.moveToBoard(999)).toEqual({ status: "not-found" });
+    });
+
+    it("won't move a parent with open sub-items to done, and reopens it with its sub-item", () => {
+      const [list] = store.loadLists();
+      const parent = ok(store.addTask(list!.id, "parent"));
+      const raw = new DatabaseSync(file);
+      const child = Number(
+        raw
+          .prepare("INSERT INTO tasks (text, done, createdAt, parentId, listId) VALUES ('child', 0, ?, ?, ?)")
+          .run(new Date().toISOString(), parent.id, list!.id).lastInsertRowid,
+      );
+      raw.close();
+
+      expect(store.setStatus(parent.id, "done")).toMatchObject({ status: "blocked" });
+
+      ok(store.setStatus(child, "done"));
+      ok(store.setStatus(parent.id, "done"));
+      ok(store.setStatus(child, "todo"));
+      expect(store.loadBoardTasks().find((t) => t.id === parent.id)).toMatchObject({ status: "todo", done: false });
+    });
+  });
+
   // Sub-items are created by the CLI/TUI; the web app must respect the same rules on a shared file.
   describe("sub-items created by the CLI", () => {
     function addSubItem(parentId: number, listId: number): number {

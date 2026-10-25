@@ -1,6 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { TASK_STATUSES, type TaskStatus } from "./board";
 
 export interface Task {
   id: number;
@@ -9,6 +10,7 @@ export interface Task {
   parentId: number | null;
   priority: boolean;
   listId: number;
+  status: TaskStatus | null;
   createdAt: string;
 }
 
@@ -25,15 +27,21 @@ interface TaskRow {
   parentId: number | null;
   priority: number;
   listId: number;
+  status: string | null;
   createdAt: string;
 }
 
 export type MutationResult<T> = { status: "ok"; value: T } | { status: "not-found" } | { status: "blocked"; reason: string };
 
-const TASK_COLUMNS = "id, text, done, parentId, priority, listId, createdAt";
+const TASK_COLUMNS = "id, text, done, parentId, priority, listId, status, createdAt";
 
 function rowToTask(row: TaskRow): Task {
-  return { ...row, done: !!row.done, priority: !!row.priority };
+  return {
+    ...row,
+    done: !!row.done,
+    priority: !!row.priority,
+    status: TASK_STATUSES.find((status) => status === row.status) ?? null,
+  };
 }
 
 // Same tables as the CLI's store (apps/cli/src/store.ts), so both apps can open the same database
@@ -132,7 +140,7 @@ export class TaskStore {
       .run(trimmed, createdAt, listId);
     return {
       status: "ok",
-      value: { id: Number(info.lastInsertRowid), text: trimmed, done: false, parentId: null, priority: false, listId, createdAt },
+      value: { id: Number(info.lastInsertRowid), text: trimmed, done: false, parentId: null, priority: false, listId, status: null, createdAt },
     };
   }
 
@@ -168,9 +176,60 @@ export class TaskStore {
       }
     }
     if (!nextDone && row.parentId !== null) {
-      this.db.prepare("UPDATE tasks SET done = 0 WHERE id = ? AND done = 1").run(row.parentId);
+      this.reopenParent(row.parentId);
     }
     return { status: "ok", value: rowToTask(this.getTask(id)!) };
+  }
+
+  // Reopening a sub-item invalidates a completed parent, on the board as well as the checkbox.
+  private reopenParent(parentId: number): void {
+    this.db.prepare("UPDATE tasks SET done = 0 WHERE id = ? AND done = 1").run(parentId);
+    this.db.prepare("UPDATE tasks SET status = 'todo' WHERE id = ? AND status = 'done'").run(parentId);
+  }
+
+  // Every task that has a status, across all lists, in creation order.
+  loadBoardTasks(): Task[] {
+    const rows = this.db
+      .prepare(`SELECT ${TASK_COLUMNS} FROM tasks WHERE status IS NOT NULL ORDER BY id`)
+      .all() as unknown as TaskRow[];
+    return rows.map(rowToTask);
+  }
+
+  // Sets a task's board status; null takes it off the board. The "done" column and the done
+  // checkbox are the same fact, so moving into or out of it also completes or reopens the task.
+  setStatus(id: number, status: TaskStatus | null): MutationResult<Task> {
+    const row = this.getTask(id);
+    if (!row) {
+      return { status: "not-found" };
+    }
+
+    if (status === "done" && row.parentId === null) {
+      const { count } = this.db
+        .prepare("SELECT COUNT(*) AS count FROM tasks WHERE parentId = ? AND done = 0")
+        .get(id) as unknown as { count: number };
+      if (count > 0) {
+        return { status: "blocked", reason: "Complete all sub-items before completing this item." };
+      }
+    }
+
+    const done = status === "done" ? 1 : status === null ? row.done : 0;
+    this.db.prepare("UPDATE tasks SET status = ?, done = ? WHERE id = ?").run(status, done, id);
+    if (!done && row.done && row.parentId !== null) {
+      this.reopenParent(row.parentId);
+    }
+    return { status: "ok", value: rowToTask(this.getTask(id)!) };
+  }
+
+  // Puts a task on the board in the column matching its checkbox; tasks already on it stay put.
+  moveToBoard(id: number): MutationResult<Task> {
+    const row = this.getTask(id);
+    if (!row) {
+      return { status: "not-found" };
+    }
+    if (row.status !== null) {
+      return { status: "ok", value: rowToTask(row) };
+    }
+    return this.setStatus(id, row.done ? "done" : "backlog");
   }
 
   removeTask(id: number): MutationResult<Task> {
