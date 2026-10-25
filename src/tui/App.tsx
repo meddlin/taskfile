@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { Text, useApp, useInput, useWindowSize } from "ink";
 import { Frame } from "./Frame.js";
 import { TodosPage } from "./TodosPage.js";
+import { BoardPage } from "./BoardPage.js";
 import { SettingsPage } from "./SettingsPage.js";
 import { AddTaskInput } from "./AddTaskInput.js";
 import { SnapshotsModal } from "./SnapshotsModal.js";
@@ -30,14 +31,18 @@ const SNAPSHOT_CONFIRM_DELETE_HINT = "y confirm delete · n/esc cancel";
 const VIEW_SNAPSHOT_HINT = "esc/h back to live view";
 
 function buildPages(lists: List[]): Page[] {
-  return [...lists.map((list) => ({ type: "list" as const, listId: list.id })), { type: "settings" as const }];
+  return [
+    ...lists.map((list) => ({ type: "list" as const, listId: list.id })),
+    { type: "board" as const },
+    { type: "settings" as const },
+  ];
 }
 
 function pagesEqual(a: Page, b: Page): boolean {
-  if (a.type === "settings" || b.type === "settings") {
-    return a.type === b.type;
+  if (a.type === "list" && b.type === "list") {
+    return a.listId === b.listId;
   }
-  return a.listId === b.listId;
+  return a.type === b.type;
 }
 
 export function App({ graphics = "none" }: { graphics?: GraphicsSupport } = {}): ReactElement {
@@ -320,6 +325,12 @@ export function App({ graphics = "none" }: { graphics?: GraphicsSupport } = {}):
           />
         );
       })}
+      <BoardPage
+        visible={!viewingSnapshot && mode === "normal" && page.type === "board"}
+        active={!viewingSnapshot && mode === "normal" && page.type === "board" && focus === "content"}
+        setMessage={setMessage}
+        onHintChange={setHint}
+      />
       <SettingsPage
         visible={!viewingSnapshot && mode === "normal" && page.type === "settings"}
         active={!viewingSnapshot && mode === "normal" && page.type === "settings" && focus === "content"}

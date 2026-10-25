@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { TASK_STATUSES, type TaskStatus } from "./board.js";
 
 export interface Task {
   id: number;
@@ -10,6 +11,7 @@ export interface Task {
   parentId: number | null;
   priority: boolean;
   listId: number;
+  status: TaskStatus | null;
   createdAt: string;
 }
 
@@ -20,6 +22,7 @@ interface TaskRow {
   parentId: number | null;
   priority: number;
   listId: number;
+  status: string | null;
   createdAt: string;
 }
 
@@ -74,6 +77,7 @@ function rowToTask(row: TaskRow): Task {
     parentId: row.parentId,
     priority: !!row.priority,
     listId: row.listId,
+    status: TASK_STATUSES.find((status) => status === row.status) ?? null,
     createdAt: row.createdAt,
   };
 }
@@ -99,7 +103,8 @@ function ensureSchema(database: DatabaseSync): void {
       createdAt TEXT NOT NULL,
       parentId INTEGER REFERENCES tasks(id),
       priority INTEGER NOT NULL DEFAULT 0,
-      listId INTEGER REFERENCES lists(id)
+      listId INTEGER REFERENCES lists(id),
+      status TEXT
     )
   `);
 
@@ -150,6 +155,11 @@ function ensureSchema(database: DatabaseSync): void {
     database.exec("ALTER TABLE tasks ADD COLUMN listId INTEGER REFERENCES lists(id)");
   }
 
+  const hasStatus = columns.some((column) => column.name === "status");
+  if (!hasStatus) {
+    database.exec("ALTER TABLE tasks ADD COLUMN status TEXT");
+  }
+
   const { count } = database.prepare("SELECT COUNT(*) AS count FROM lists").get() as unknown as { count: number };
   let defaultListId: number;
   if (count === 0) {
@@ -190,7 +200,7 @@ export function getDb(): DatabaseSync {
 export function loadTasks(listId: number): Task[] {
   const rows = getDb()
     .prepare(
-      `SELECT id, text, done, parentId, priority, listId, createdAt FROM tasks
+      `SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks
        WHERE listId = ?
        ORDER BY
          (SELECT priority FROM tasks p WHERE p.id = COALESCE(tasks.parentId, tasks.id)) DESC,
@@ -208,7 +218,7 @@ export function addTask(listId: number, text: string, parentId: number | null = 
   const info = getDb()
     .prepare("INSERT INTO tasks (text, done, createdAt, parentId, listId) VALUES (?, 0, ?, ?, ?)")
     .run(text, createdAt, parentId, listId);
-  return { id: Number(info.lastInsertRowid), text, done: false, parentId, priority: false, listId, createdAt };
+  return { id: Number(info.lastInsertRowid), text, done: false, parentId, priority: false, listId, status: null, createdAt };
 }
 
 export function loadLists(): List[] {
@@ -271,7 +281,7 @@ export function getDefaultListId(): number {
 
 export function removeTask(id: number): RemoveResult {
   const row = getDb()
-    .prepare("SELECT id, text, done, parentId, priority, listId, createdAt FROM tasks WHERE id = ?")
+    .prepare("SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow | undefined;
 
   if (!row) {
@@ -291,9 +301,15 @@ export function removeTask(id: number): RemoveResult {
   return { status: "ok", task: rowToTask(row) };
 }
 
+// Reopening a sub-item invalidates a completed parent, on the board as well as the checkbox.
+function reopenParent(parentId: number): void {
+  getDb().prepare("UPDATE tasks SET done = 0 WHERE id = ? AND done = 1").run(parentId);
+  getDb().prepare("UPDATE tasks SET status = 'todo' WHERE id = ? AND status = 'done'").run(parentId);
+}
+
 export function toggleTask(id: number): ToggleResult {
   const row = getDb()
-    .prepare("SELECT id, text, done, parentId, priority, listId, createdAt FROM tasks WHERE id = ?")
+    .prepare("SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow | undefined;
 
   if (!row) {
@@ -316,18 +332,27 @@ export function toggleTask(id: number): ToggleResult {
     .run(nextDone ? 1 : 0, id);
 
   if (!nextDone && row.parentId !== null) {
-    getDb().prepare("UPDATE tasks SET done = 0 WHERE id = ? AND done = 1").run(row.parentId);
+    reopenParent(row.parentId);
+  }
+
+  // Tasks on the board keep their column in step with the checkbox.
+  if (row.status !== null) {
+    if (nextDone) {
+      getDb().prepare("UPDATE tasks SET status = 'done' WHERE id = ?").run(id);
+    } else if (row.status === "done") {
+      getDb().prepare("UPDATE tasks SET status = 'todo' WHERE id = ?").run(id);
+    }
   }
 
   const updated = getDb()
-    .prepare("SELECT id, text, done, parentId, priority, listId, createdAt FROM tasks WHERE id = ?")
+    .prepare("SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow;
   return { status: "ok", task: rowToTask(updated) };
 }
 
 export function updateTask(id: number, text: string): UpdateResult {
   const row = getDb()
-    .prepare("SELECT id, text, done, parentId, priority, listId, createdAt FROM tasks WHERE id = ?")
+    .prepare("SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow | undefined;
 
   if (!row) {
@@ -361,7 +386,7 @@ export function hasSubItems(id: number): boolean {
 
 export function setPriority(id: number, priority: boolean): UpdateResult {
   const row = getDb()
-    .prepare("SELECT id, text, done, parentId, priority, listId, createdAt FROM tasks WHERE id = ?")
+    .prepare("SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow | undefined;
 
   if (!row) {
@@ -379,7 +404,64 @@ export function setPriority(id: number, priority: boolean): UpdateResult {
   }
 
   const updated = getDb()
-    .prepare("SELECT id, text, done, parentId, priority, listId, createdAt FROM tasks WHERE id = ?")
+    .prepare("SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE id = ?")
     .get(id) as unknown as TaskRow;
   return { status: "ok", task: rowToTask(updated) };
+}
+
+// Every task that has a status, across all lists, in creation order.
+export function loadBoardTasks(): Task[] {
+  const rows = getDb()
+    .prepare(
+      "SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE status IS NOT NULL ORDER BY id",
+    )
+    .all() as unknown as TaskRow[];
+  return rows.map(rowToTask);
+}
+
+// Sets a task's board status; null takes it off the board. The "done" column and the done
+// checkbox are the same fact, so moving into or out of it also completes or reopens the task.
+export function setStatus(id: number, status: TaskStatus | null): UpdateResult {
+  const row = getDb()
+    .prepare("SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE id = ?")
+    .get(id) as unknown as TaskRow | undefined;
+
+  if (!row) {
+    return { status: "not-found" };
+  }
+
+  if (status === "done" && row.parentId === null) {
+    const { count } = getDb()
+      .prepare("SELECT COUNT(*) AS count FROM tasks WHERE parentId = ? AND done = 0")
+      .get(id) as unknown as { count: number };
+    if (count > 0) {
+      return { status: "blocked", reason: "Complete all sub-items before completing this item." };
+    }
+  }
+
+  const done = status === "done" ? 1 : status === null ? row.done : 0;
+  getDb().prepare("UPDATE tasks SET status = ?, done = ? WHERE id = ?").run(status, done, id);
+
+  if (!done && row.done && row.parentId !== null) {
+    reopenParent(row.parentId);
+  }
+
+  const updated = getDb()
+    .prepare("SELECT id, text, done, parentId, priority, listId, status, createdAt FROM tasks WHERE id = ?")
+    .get(id) as unknown as TaskRow;
+  return { status: "ok", task: rowToTask(updated) };
+}
+
+// Puts a task on the board in the column matching its checkbox; tasks already on it stay put.
+export function moveToBoard(id: number): UpdateResult {
+  const row = getDb().prepare("SELECT done, status FROM tasks WHERE id = ?").get(id) as unknown as
+    | { done: number; status: string | null }
+    | undefined;
+  if (!row) {
+    return { status: "not-found" };
+  }
+  if (row.status !== null) {
+    return setStatus(id, TASK_STATUSES.find((status) => status === row.status) ?? "backlog");
+  }
+  return setStatus(id, row.done ? "done" : "backlog");
 }

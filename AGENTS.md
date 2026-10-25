@@ -18,6 +18,14 @@ rather than the `commands/*.ts` wrappers, since those `console.log`/`console.err
 corrupt Ink's full-screen render. Keybindings: arrows/`j`/`k` to navigate, `space`/`enter` to toggle
 done, `a` to add, `d`/`x` to delete (asks `y`/`n` to confirm), `q`/`Esc` to quit.
 
+Tasks can be put on a Kanban-style status board (`src/board.ts` holds the statuses `backlog`, `todo`,
+`in-progress`, `done` and their parsing/grouping helpers). A task's `status` is nullable (null = not
+on the board); the `done` column and the done checkbox are kept in sync by `store.ts`
+(`setStatus`, `moveToBoard`, `toggleTask`). CLI: `taskfile status <id> <status|none>` and
+`taskfile board`. TUI: `m` sends the selected todo to the board, `t` cycles its status, and the
+"Board" sidebar page (`BoardPage.tsx`, all lists combined) uses `[`/`]` to pick a column, `,`/`.` to
+move a card, and `r` to take it off the board.
+
 The Settings page can set a background image (PNG path, `src/tui/backgroundImage.ts`). `tui/index.tsx`
 probes the terminal for the kitty graphics protocol before rendering; if supported, the image is
 placed under the text (`z=-1`) by `BackgroundLayer.tsx`, otherwise a dimmed half-block (`▀`)

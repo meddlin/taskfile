@@ -15,6 +15,8 @@ import { Command } from "commander";
 import { addItem } from "./commands/add.js";
 import { removeItem } from "./commands/remove.js";
 import { listItems } from "./commands/list.js";
+import { setItemStatus } from "./commands/status.js";
+import { showBoard } from "./commands/board.js";
 import { runTui } from "./tui/index.js";
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
@@ -45,6 +47,20 @@ program
   .description("List all tasks")
   .action(() => {
     listItems();
+  });
+
+program
+  .command("status <id> <status>")
+  .description("Set a task's board status: backlog, todo, in-progress, done (or none to remove it from the board)")
+  .action((id: string, status: string) => {
+    setItemStatus(Number(id), status);
+  });
+
+program
+  .command("board")
+  .description("Show the Kanban-style status board")
+  .action(() => {
+    showBoard();
   });
 
 program
