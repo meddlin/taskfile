@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { DataLocationForm } from "~/components/data-location-form";
 import { BackgroundPicker } from "~/components/background-picker";
 import { PageNav } from "~/components/PageNav";
 import { ThemeToggle } from "~/components/theme-toggle";
@@ -20,6 +21,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
     </section>
   );
 }
+
+const SOURCE_LABEL = {
+  environment: "set by TASKFILE_DB (change it there)",
+  settings: "chosen on this page",
+  default: "default",
+} as const;
 
 function SettingsPage() {
   const location = Route.useLoaderData();
@@ -48,10 +55,15 @@ function SettingsPage() {
         <code className="block bg-highlight px-3 py-2 break-all">{location.path}</code>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
           <dt className="text-muted-foreground">location</dt>
-          <dd>{location.source === "environment" ? "set by TASKFILE_DB" : "default (shared with the taskfile CLI)"}</dd>
+          <dd>{SOURCE_LABEL[location.source]}</dd>
           <dt className="text-muted-foreground">size</dt>
           <dd>{location.exists && location.sizeBytes !== null ? formatBytes(location.sizeBytes) : "not created yet"}</dd>
         </dl>
+        <DataLocationForm key={location.path} currentPath={location.path} locked={location.source === "environment"} />
+        <p className="text-muted-foreground">
+          an existing database is copied to a new file; one already there is used as it is. under Docker, only files inside the
+          mounted data folder (/data) land on your machine; the folder itself is set by TASKFILE_DATA_DIR when you start compose.
+        </p>
         <p className="text-muted-foreground">
           your color scheme and background are saved in this browser only, not in the database.
         </p>

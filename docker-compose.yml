@@ -2,6 +2,8 @@
 #   TASKFILE_PORT=4321 docker compose up --build   -> http://localhost:4321
 #   docker compose up --build                      -> Docker assigns a free port;
 #                                                     run `docker compose port web 8080` to find it
+# Data lives in ./taskfile-data on your machine (override: TASKFILE_DATA_DIR=/some/folder), so it
+# survives `docker compose down -v` and image rebuilds.
 services:
   web:
     build:
@@ -13,7 +15,4 @@ services:
       # Only so the startup log can print the host URL; 8080 is internal to the container.
       TASKFILE_PUBLISHED_PORT: "${TASKFILE_PORT:-}"
     volumes:
-      - taskfile-data:/data
-
-volumes:
-  taskfile-data:
+      - "${TASKFILE_DATA_DIR:-./taskfile-data}:/data"
