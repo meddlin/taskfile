@@ -25,7 +25,7 @@ export function parseBackground(value: string | null | undefined): Background {
 export function backgroundInitScript(): string {
   const known = JSON.stringify(BACKGROUND_OPTIONS.map((o) => o.value));
   return `(function(){try{var b=localStorage.getItem(${JSON.stringify(BACKGROUND_STORAGE_KEY)});` +
-    `if(${known}.indexOf(b)>0)document.documentElement.dataset.background=b;}catch(e){}})();`;
+    "if(" + known + ".indexOf(b)>0)document.documentElement.dataset.background=b;}catch(e){}})();";
 }
 
 // Sets the background on <html>; "plain" removes the attribute so the stylesheet default applies.

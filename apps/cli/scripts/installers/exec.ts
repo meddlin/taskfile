@@ -6,7 +6,8 @@ export function run(
   args: string[],
   options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
 ): void {
-  // nosemgrep: javascript.lang.security.audit.spawn-shell-true -- only npm on Windows, and the arguments are fixed build steps, never user input
+  // Only npm on Windows, and the arguments are fixed build steps, never user input.
+  // nosemgrep: opengrep-rules.javascript.lang.security.audit.spawn-shell-true
   const result = spawnSync(command, args, {
     cwd: options.cwd,
     env: { ...process.env, ...options.env },
