@@ -22,6 +22,25 @@ npx @rushinglabs/taskfile list
 npx @rushinglabs/taskfile remove 1
 ```
 
+## Web app
+
+`apps/web` is a minimal web version (TanStack Start, Tailwind, shadcn/ui, SQLite). This repo is an
+npm-workspaces monorepo: the CLI lives in `apps/cli`, the web app in `apps/web`.
+
+```bash
+npm install
+npm run dev:web          # starts on a free port (printed at startup); PORT=4321 npm run dev:web to choose
+```
+
+Run it in Docker (build from the repo root; data persists in the `taskfile-data` volume):
+
+```bash
+TASKFILE_PORT=4321 docker compose up --build   # http://localhost:4321
+docker compose up --build                      # Docker picks a free port: docker compose port web 8080
+```
+
+Locally the web app uses the same database as the CLI (`~/.taskfile/tasks.db`); override with `TASKFILE_DB`.
+
 ## Development
 
 ```bash

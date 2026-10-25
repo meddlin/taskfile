@@ -39,12 +39,14 @@ export function prepareAppPayload(ctx: StageContext): string {
   cpSync(dist, join(payload, "dist"), { recursive: true });
   // index.ts reads ../package.json at runtime for --version.
   copyFileSync(join(ctx.repoRoot, "package.json"), join(payload, "package.json"));
-  copyFileSync(join(ctx.repoRoot, "package-lock.json"), join(payload, "package-lock.json"));
 
-  run("npm", ["ci", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"], { cwd: payload });
+  // The lockfile lives at the workspace root and covers every workspace, so it can't be used with
+  // this package.json alone; resolve production dependencies fresh (ranges come from package.json).
+  run("npm", ["install", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund", "--package-lock=false"], {
+    cwd: payload,
+  });
 
-  // The lockfile is only needed to install; .bin holds symlinks the app never uses.
-  rmSync(join(payload, "package-lock.json"));
+  // .bin holds symlinks the app never uses.
   rmSync(join(payload, "node_modules", ".bin"), { recursive: true, force: true });
   return payload;
 }
@@ -63,7 +65,7 @@ export async function stageTarget(
   mkdirSync(join(stage, "runtime"), { recursive: true });
 
   cpSync(payload, join(stage, "app"), { recursive: true });
-  copyFileSync(join(ctx.repoRoot, "LICENSE"), join(stage, "LICENSE"));
+  copyFileSync(join(ctx.repoRoot, "..", "..", "LICENSE"), join(stage, "LICENSE"));
 
   const archive = await downloadNode(ctx.cacheDir, target);
   extractNode(ctx, archive, target, join(stage, "runtime"));

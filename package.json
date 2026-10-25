@@ -1,49 +1,18 @@
 {
-  "name": "@rushinglabs/taskfile",
-  "version": "0.2.2",
-  "description": "A simple todo list CLI, runnable via npx",
-  "main": "./dist/index.js",
-  "bin": {
-    "taskfile": "./dist/index.js"
-  },
-  "files": [
-    "dist"
+  "name": "taskfile-monorepo",
+  "private": true,
+  "description": "Taskfile monorepo: the CLI/TUI (apps/cli) and the web app (apps/web)",
+  "workspaces": [
+    "apps/*"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsx src/index.ts",
-    "installers": "tsx scripts/installers/build.ts",
-    "test": "vitest run",
-    "prepublishOnly": "npm run build"
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "dev:cli": "npm run dev -w @rushinglabs/taskfile --",
+    "dev:web": "npm run dev -w @taskfile/web",
+    "installers": "npm run installers -w @rushinglabs/taskfile --"
   },
-  "keywords": [
-    "todo",
-    "cli",
-    "task"
-  ],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
   "engines": {
     "node": ">=22.5.0"
-  },
-  "dependencies": {
-    "commander": "^15.0.0",
-    "ink": "^8.0.0",
-    "ink-text-input": "^6.0.0",
-    "pngjs": "^7.0.0",
-    "react": "^19.3.0"
-  },
-  "devDependencies": {
-    "@types/node": "^26.2.0",
-    "@types/pngjs": "^6.0.5",
-    "@types/react": "^19.3.0",
-    "ink-testing-library": "^4.0.0",
-    "tsx": "^4.23.12",
-    "typescript": "^7.0.2",
-    "vitest": "^5.0.0"
   }
 }

@@ -43,7 +43,7 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          version="$(node -p "require('./package.json').version")"
+          version="$(node -p "require('./apps/cli/package.json').version")"
           if [ "$TAG" != "v$version" ]; then
             echo "::error::Tag $TAG does not match package.json version $version. Bump the version (npm version) before tagging."
             exit 1
@@ -102,18 +102,18 @@ jobs:
             x86_64) arch=x64 ;;
             *) echo "unexpected arch $(uname -m)"; exit 1 ;;
           esac
-          sudo installer -pkg release/taskfile-*-macos-"$arch".pkg -target /
+          sudo installer -pkg apps/cli/release/taskfile-*-macos-"$arch".pkg -target /
           export HOME="$(mktemp -d)"
-          test "$(taskfile --version)" = "$(node -p "require('./package.json').version")"
+          test "$(taskfile --version)" = "$(node -p "require('./apps/cli/package.json').version")"
           taskfile add "smoke test"
           taskfile list | grep "smoke test"
 
       - name: Smoke test (Debian)
         if: matrix.platform == 'linux'
         run: |
-          sudo dpkg -i release/taskfile_*_amd64.deb
+          sudo dpkg -i apps/cli/release/taskfile_*_amd64.deb
           export HOME="$(mktemp -d)"
-          test "$(taskfile --version)" = "$(node -p "require('./package.json').version")"
+          test "$(taskfile --version)" = "$(node -p "require('./apps/cli/package.json').version")"
           taskfile add "smoke test"
           taskfile list | grep "smoke test"
           sudo apt-get remove -y taskfile
@@ -131,8 +131,8 @@ jobs:
             return $output
           }
 
-          $expected = node -p "require('./package.json').version"
-          $installer = Get-ChildItem release\taskfile-*-windows-x64-setup.exe | Select-Object -First 1
+          $expected = node -p "require('./apps/cli/package.json').version"
+          $installer = Get-ChildItem apps\cli\release\taskfile-*-windows-x64-setup.exe | Select-Object -First 1
           Start-Process -FilePath $installer.FullName -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait
 
           $dir = Join-Path $env:LOCALAPPDATA 'Programs\taskfile'
@@ -156,9 +156,9 @@ jobs:
         with:
           name: installers-${{ matrix.platform }}
           path: |
-            release/*.pkg
-            release/*.deb
-            release/*.exe
+            apps/cli/release/*.pkg
+            apps/cli/release/*.deb
+            apps/cli/release/*.exe
           if-no-files-found: error
           retention-days: 14
 
