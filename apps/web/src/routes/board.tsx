@@ -33,6 +33,9 @@ function BoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [col, setCol] = useState(0);
   const [row, setRow] = useState(0);
+  // Drag and drop: the card being dragged and the column it is currently over.
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);
 
   const columns = groupByStatus(tasks);
   const listName = (id: number) => lists.find((l) => l.id === id)?.name ?? "?";
@@ -121,7 +124,30 @@ function BoardPage() {
 
       <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
         {TASK_STATUSES.map((status, c) => (
-          <section key={status} aria-label={STATUS_LABELS[status]} className="flex min-w-0 flex-col gap-1">
+          <section
+            key={status}
+            aria-label={STATUS_LABELS[status]}
+            onDragOver={(e) => {
+              if (dragId === null) return;
+              e.preventDefault(); // marks the column as a valid drop target
+              e.dataTransfer.dropEffect = "move";
+              setOverStatus(status);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOverStatus(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const dropped = tasks.find((t) => t.id === dragId);
+              setDragId(null);
+              setOverStatus(null);
+              if (dropped) move(dropped, status);
+            }}
+            className={cn(
+              "flex min-h-24 min-w-0 flex-col gap-1 transition-colors duration-150",
+              overStatus === status && dragId !== null && "bg-highlight outline-1 outline-dashed outline-accent",
+            )}
+          >
             <h2
               className={cn(
                 "flex justify-between border-b pb-1 transition-colors duration-150",
@@ -137,13 +163,26 @@ function BoardPage() {
                 return (
                   <li
                     key={task.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", String(task.id));
+                      setDragId(task.id);
+                      setCol(c);
+                      setRow(r);
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setOverStatus(null);
+                    }}
                     onClick={() => {
                       setCol(c);
                       setRow(r);
                     }}
                     className={cn(
-                      "animate-row-in flex flex-col gap-0.5 px-1 py-1 transition-colors duration-100",
+                      "animate-row-in flex cursor-grab flex-col gap-0.5 px-1 py-1 transition-[background-color,opacity] duration-100 active:cursor-grabbing",
                       isSelected && "bg-highlight",
+                      dragId === task.id && "opacity-40",
                     )}
                   >
                     <span className={cn("break-words", task.done && "text-muted-foreground line-through")}>
@@ -193,7 +232,7 @@ function BoardPage() {
       </div>
 
       <footer className="mt-auto pt-6 text-muted-foreground">
-        j/k move · [ ] column · , . move card · r remove
+        drag cards between columns · j/k move · [ ] column · , . move card · r remove
       </footer>
     </main>
   );
