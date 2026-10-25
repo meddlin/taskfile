@@ -37,6 +37,8 @@ jobs:
           echo "${OPENGREP_SHA256}  $RUNNER_TEMP/opengrep" | sha256sum --check
           chmod +x "$RUNNER_TEMP/opengrep"
 
+      # Skipped on purpose: tests are not shipped, and the i18next rule is a portability nudge that flags
+      # every user-facing string in the English-only apps (24 findings across the web app and the TUI).
       - name: Scan
         run: |
           "$RUNNER_TEMP/opengrep" scan \
@@ -45,6 +47,9 @@ jobs:
             --exclude .opengrep-rules \
             --exclude node_modules \
             --exclude dist \
+            --exclude '*.test.ts' \
+            --exclude '*.test.tsx' \
+            --exclude-rule opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized \
             --error \
             --sarif-output=opengrep.sarif \
             .
