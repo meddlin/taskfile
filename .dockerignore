@@ -3,3 +3,4 @@
 apps/cli/release
 .git
 .claude
+taskfile-data

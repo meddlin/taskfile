@@ -94,6 +94,12 @@ export class TaskStore {
     this.db.close();
   }
 
+  // Consistent copy of the whole database (includes anything still in the WAL) to a new file.
+  copyTo(file: string): void {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    this.db.prepare("VACUUM INTO ?").run(file);
+  }
+
   loadLists(): List[] {
     return this.db.prepare("SELECT id, name, createdAt FROM lists ORDER BY id").all() as unknown as List[];
   }

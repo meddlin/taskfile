@@ -77,3 +77,11 @@ export const sendToBoard = createServerFn({ method: "POST" })
 export const getDataLocation = createServerFn({ method: "GET" }).handler(async (): Promise<DataLocation> => {
   return (await import("./data-location")).describeDataLocation();
 });
+
+export interface ChangeLocationInput {
+  path: string;
+}
+
+export const setDataLocation = createServerFn({ method: "POST" })
+  .validator((data: ChangeLocationInput) => data)
+  .handler(async ({ data }) => (await import("./db")).changeDataLocation(data.path));

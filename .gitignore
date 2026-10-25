@@ -3,3 +3,6 @@ dist
 
 # Native installer build output
 release/
+
+# Local data from docker compose
+taskfile-data/
