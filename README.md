@@ -43,8 +43,10 @@ there using `apps/web/Dockerfile`).
    TASKFILE_PORT=4321 docker compose up --build
    ```
 
-   Then open <http://localhost:4321>. The port is bound to `127.0.0.1`, so it is only reachable from
-   your machine.
+   Then open <http://127.0.0.1:4321>. The port is bound to `127.0.0.1` (IPv4 loopback), so it is only
+   reachable from your machine; use that address rather than `localhost`, which some browsers resolve
+   to IPv6 `::1` first. `8080` in the container's log is the port *inside* the container, not one you
+   can open.
 
 2. Or omit `TASKFILE_PORT` and let Docker pick a free port, then look it up:
 
@@ -52,6 +54,8 @@ there using `apps/web/Dockerfile`).
    docker compose up --build
    docker compose port web 8080
    ```
+
+   Open the address it prints (e.g. `127.0.0.1:53211`).
 
 3. Add `-d` to run in the background, and stop it with:
 

@@ -14,6 +14,7 @@ CLI's, so both can open one database file. `TASKFILE_DB` selects the file (defau
 Ports are never hardcoded: set `PORT` to choose one, otherwise a free port is picked (dev server:
 `vite.config.ts`; production: `server.mjs`). `apps/web/Dockerfile` (build from the repo root) and
 `docker-compose.yml` run it locally; the host port comes from `TASKFILE_PORT` or Docker picks a free one.
+8080 is only the container's internal port; `listen-message.mjs` makes the startup log print the host URL instead (compose passes `TASKFILE_PORT` in as `TASKFILE_PUBLISHED_PORT`).
 
 The web app's `/settings` page (`apps/web/src/routes/settings.tsx`) sets the color scheme and page
 background and shows where the database lives. Both preferences are per-browser (`localStorage`, applied
