@@ -3,6 +3,7 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { ThemeToggle } from "~/components/theme-toggle";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
@@ -53,7 +54,10 @@ function TasksPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-4 p-4 sm:p-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Taskfile</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Taskfile</h1>
+        <ThemeToggle />
+      </div>
 
       <nav aria-label="Lists" className="flex flex-wrap items-center gap-2">
         {lists.map((list) => (
