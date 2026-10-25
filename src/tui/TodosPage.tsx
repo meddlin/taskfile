@@ -1,13 +1,16 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { Text, useApp, useInput } from "ink";
+import { stepStatus, STATUS_LABELS } from "../board.js";
 import {
   addTask,
   computeProgress,
   hasSubItems,
   loadTasks,
+  moveToBoard,
   removeTask,
   renameList,
   setPriority,
+  setStatus,
   toggleTask,
   updateTask,
   type Task,
@@ -19,7 +22,7 @@ import { EditTaskModal, type EditFocus } from "./EditTaskModal.js";
 type Mode = "list" | "add" | "confirm-delete" | "edit" | "rename-list";
 
 const LIST_HINT =
-  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · d delete · r rename list · D delete list · ←/→ nav focus · Tab switch · Ctrl+N new list · q quit";
+  "↑/k ↓/j move · space/enter toggle · a add · s add sub-item · e edit · m to board · t status · d delete · r rename list · D delete list · ←/→ nav focus · Tab switch · Ctrl+N new list · q quit";
 const EDIT_HINT = "tab cycle · space toggle priority · enter save · esc cancel";
 const RENAME_LIST_HINT = "enter save · esc cancel";
 
@@ -77,6 +80,11 @@ export function TodosPage({
   function refresh(): void {
     setTasks(loadTasks(listId));
   }
+
+  // The board page can change statuses while this page is hidden.
+  useEffect(() => {
+    if (visible) setTasks(loadTasks(listId));
+  }, [visible, listId]);
 
   function commitEdit(): void {
     if (editingTaskId === undefined) {
@@ -203,6 +211,22 @@ export function TodosPage({
           if (result.status === "blocked") {
             setMessage(result.reason);
           } else {
+            refresh();
+          }
+        }
+        return;
+      }
+
+      if (input === "m" || input === "t") {
+        const task = tasks[selectedIndex];
+        if (task) {
+          const result = input === "m" ? moveToBoard(task.id) : setStatus(task.id, stepStatus(task.status, 1, true));
+          if (result.status === "blocked") {
+            setMessage(result.reason);
+          } else if (result.status === "ok") {
+            setMessage(
+              result.task.status === null ? "Removed from the board." : `Board: ${STATUS_LABELS[result.task.status]}`,
+            );
             refresh();
           }
         }

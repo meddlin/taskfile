@@ -5,7 +5,7 @@ import * as path from "path";
 import { PNG } from "pngjs";
 import { render } from "ink-testing-library";
 import { App } from "./App.js";
-import { addTask, createList, getDefaultListId, loadLists, loadTasks, toggleTask } from "../store.js";
+import { addTask, createList, getDefaultListId, loadLists, loadTasks, setStatus, toggleTask } from "../store.js";
 import { loadSettings, saveSettings } from "../settings.js";
 import { captureSnapshot, listSnapshots } from "../snapshots.js";
 
@@ -247,7 +247,9 @@ describe("App", () => {
     expect(lastFrame()).toContain("Settings");
     expect(lastFrame()).not.toContain("Window width");
 
-    stdin.write("\t");
+    stdin.write("\t"); // Todos -> Board
+    await delay();
+    stdin.write("\t"); // Board -> Settings
     await delay();
 
     expect(lastFrame()).toContain("Window width");
@@ -470,11 +472,15 @@ describe("App", () => {
 
     stdin.write("\x1B[D"); // Left -> nav focus
     await delay();
+    stdin.write("\x1B[B"); // Down -> Board
+    await delay();
     stdin.write("\x1B[B"); // Down -> Settings
     await delay();
 
     expect(lastFrame()).toContain("Window width");
 
+    stdin.write("\x1B[A"); // Up -> Board
+    await delay();
     stdin.write("\x1B[A"); // Up -> back to Todos
     await delay();
 
@@ -581,7 +587,9 @@ describe("App", () => {
 
     expect(lastFrame()).not.toContain("Default list task");
 
-    stdin.write("\t"); // Second list -> Settings
+    stdin.write("\t"); // Second list -> Board
+    await delay();
+    stdin.write("\t"); // Board -> Settings
     await delay();
     stdin.write("\t"); // Settings -> back to first list (Todos)
     await delay();
@@ -748,6 +756,8 @@ describe("App", () => {
     const { stdin, unmount } = render(<App />);
     await delay();
 
+    stdin.write("\t"); // switch to Board
+    await delay();
     stdin.write("\t"); // switch to Settings
     await delay();
     stdin.write("\r"); // start editing width
@@ -766,6 +776,8 @@ describe("App", () => {
     const { stdin, lastFrame, unmount } = render(<App />);
     await delay();
 
+    stdin.write("\t"); // switch to Board
+    await delay();
     stdin.write("\t"); // switch to Settings
     await delay();
     stdin.write("\x1B[C"); // focus content
@@ -923,5 +935,120 @@ describe("App", () => {
     expect(lastFrame()).toContain("No snapshots yet.");
 
     unmount();
+  });
+
+  describe("status board", () => {
+    it("m sends the selected task to the board's backlog and tags it in the list", async () => {
+      addTask(getDefaultListId(), "Buy milk");
+
+      const { stdin, lastFrame, unmount } = render(<App />);
+      await delay();
+
+      stdin.write("m");
+      await delay();
+
+      expect(loadTasks(getDefaultListId())[0]!.status).toBe("backlog");
+      expect(lastFrame()).toContain("[Backlog]");
+
+      unmount();
+    });
+
+    it("t steps the selected task through the statuses and back off the board", async () => {
+      addTask(getDefaultListId(), "Buy milk");
+
+      const { stdin, unmount } = render(<App />);
+      await delay();
+
+      const seen: (string | null)[] = [];
+      for (let i = 0; i < 5; i++) {
+        stdin.write("t");
+        await delay();
+        seen.push(loadTasks(getDefaultListId())[0]!.status);
+      }
+
+      expect(seen).toEqual(["backlog", "todo", "in-progress", "done", null]);
+
+      unmount();
+    });
+
+    it("shows board tasks from every list in their columns", async () => {
+      const other = createList("Other list");
+      setStatus(addTask(getDefaultListId(), "Buy milk").id, "backlog");
+      setStatus(addTask(other.id, "Write report").id, "in-progress");
+      addTask(getDefaultListId(), "Not on the board");
+
+      const { stdin, lastFrame, unmount } = render(<App />);
+      await delay();
+
+      stdin.write("\x1B[D"); // Left -> nav focus
+      await delay();
+      stdin.write("\x1B[A"); // Up -> Settings
+      await delay();
+      stdin.write("\x1B[A"); // Up -> Board
+      await delay();
+
+      const frame = lastFrame()!;
+      expect(frame).toContain("Backlog (1)");
+      expect(frame).toContain("In progress (1)");
+      expect(frame).toContain("#1 Buy milk");
+      expect(frame).toContain("#2 Write report");
+      expect(frame).not.toContain("Not on the board");
+
+      unmount();
+    });
+
+    it("moves the selected card between columns with . and , and removes it with r", async () => {
+      setStatus(addTask(getDefaultListId(), "Buy milk").id, "backlog");
+
+      const { stdin, lastFrame, unmount } = render(<App />);
+      await delay();
+
+      stdin.write("\t"); // Todos -> Board
+      await delay();
+      stdin.write(".");
+      await delay();
+      stdin.write(".");
+      await delay();
+
+      expect(loadTasks(getDefaultListId())[0]!.status).toBe("in-progress");
+      expect(lastFrame()).toContain("In progress (1)");
+
+      stdin.write(",");
+      await delay();
+      expect(loadTasks(getDefaultListId())[0]!.status).toBe("todo");
+
+      stdin.write("r");
+      await delay();
+      expect(loadTasks(getDefaultListId())[0]!.status).toBeNull();
+      expect(lastFrame()).toContain("Backlog (0)");
+
+      unmount();
+    });
+
+    it("moving a card into Done completes the task, and the list view reflects it", async () => {
+      setStatus(addTask(getDefaultListId(), "Buy milk").id, "in-progress");
+
+      const { stdin, lastFrame, unmount } = render(<App />);
+      await delay();
+
+      stdin.write("\t"); // Todos -> Board
+      await delay();
+      stdin.write("]"); // select the In progress column
+      await delay();
+      stdin.write("]");
+      await delay();
+      stdin.write(".");
+      await delay();
+
+      expect(loadTasks(getDefaultListId())[0]).toMatchObject({ done: true, status: "done" });
+
+      stdin.write("\x1B[Z"); // Shift+Tab -> back to Todos
+      await delay();
+
+      expect(lastFrame()).toContain("[x] #1 Buy milk");
+      expect(lastFrame()).toContain("[Done]");
+
+      unmount();
+    });
   });
 });

@@ -11,16 +11,19 @@ import {
   getDefaultListId,
   hasSubItems,
   loadLists,
+  loadBoardTasks,
   loadTasks,
+  moveToBoard,
   removeTask,
   renameList,
   setPriority,
+  setStatus,
   toggleTask,
   type Task,
 } from "./store.js";
 
 function makeTask(overrides: Partial<Task> = {}): Task {
-  return { id: 1, text: "task", done: false, parentId: null, priority: false, listId: 1, createdAt: "", ...overrides };
+  return { id: 1, text: "task", done: false, parentId: null, priority: false, listId: 1, status: null, createdAt: "", ...overrides };
 }
 
 describe("store", () => {
@@ -459,5 +462,144 @@ describe("computeProgress", () => {
       makeTask({ id: 3, done: false }),
     ];
     expect(computeProgress(tasks).percent).toBe(33);
+  });
+});
+
+describe("board statuses", () => {
+  let tempHome: string;
+  let originalHome: string | undefined;
+  let listId: number;
+
+  beforeEach(() => {
+    originalHome = process.env.HOME;
+    tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "taskfile-test-"));
+    process.env.HOME = tempHome;
+    listId = getDefaultListId();
+  });
+
+  afterEach(() => {
+    process.env.HOME = originalHome;
+    fs.rmSync(tempHome, { recursive: true, force: true });
+  });
+
+  it("new tasks are off the board", () => {
+    addTask(listId, "Buy milk");
+
+    expect(loadTasks(listId)[0]!.status).toBeNull();
+    expect(loadBoardTasks()).toEqual([]);
+  });
+
+  it("setStatus puts a task on the board and persists it", () => {
+    const task = addTask(listId, "Buy milk");
+
+    const result = setStatus(task.id, "in-progress");
+
+    expect(result).toMatchObject({ status: "ok", task: { status: "in-progress", done: false } });
+    expect(loadBoardTasks().map((t) => [t.id, t.status])).toEqual([[task.id, "in-progress"]]);
+  });
+
+  it("setStatus(null) takes a task off the board but keeps its done state", () => {
+    const task = addTask(listId, "Buy milk");
+    setStatus(task.id, "done");
+
+    const result = setStatus(task.id, null);
+
+    expect(result).toMatchObject({ status: "ok", task: { status: null, done: true } });
+    expect(loadBoardTasks()).toEqual([]);
+  });
+
+  it("returns not-found for an unknown id", () => {
+    expect(setStatus(99, "todo")).toEqual({ status: "not-found" });
+    expect(moveToBoard(99)).toEqual({ status: "not-found" });
+  });
+
+  it("moving into the done column completes the task, and out of it reopens it", () => {
+    const task = addTask(listId, "Buy milk");
+
+    expect(setStatus(task.id, "done")).toMatchObject({ task: { done: true } });
+    expect(setStatus(task.id, "todo")).toMatchObject({ task: { done: false, status: "todo" } });
+  });
+
+  it("blocks moving a parent to done while sub-items are open", () => {
+    const parent = addTask(listId, "Parent");
+    addTask(listId, "Child", parent.id);
+
+    const result = setStatus(parent.id, "done");
+
+    expect(result).toEqual({ status: "blocked", reason: "Complete all sub-items before completing this item." });
+    expect(loadTasks(listId).find((t) => t.id === parent.id)).toMatchObject({ done: false, status: null });
+  });
+
+  it("reopening a sub-item via the board pulls a done parent back to to-do", () => {
+    const parent = addTask(listId, "Parent");
+    const child = addTask(listId, "Child", parent.id);
+    setStatus(child.id, "done");
+    setStatus(parent.id, "done");
+
+    setStatus(child.id, "in-progress");
+
+    expect(loadTasks(listId).find((t) => t.id === parent.id)).toMatchObject({ done: false, status: "todo" });
+  });
+
+  it("toggling a task on the board moves it between done and to-do", () => {
+    const task = addTask(listId, "Buy milk");
+    setStatus(task.id, "in-progress");
+
+    toggleTask(task.id);
+    expect(loadTasks(listId)[0]).toMatchObject({ done: true, status: "done" });
+
+    toggleTask(task.id);
+    expect(loadTasks(listId)[0]).toMatchObject({ done: false, status: "todo" });
+  });
+
+  it("toggling a task that is off the board leaves its status alone", () => {
+    const task = addTask(listId, "Buy milk");
+
+    toggleTask(task.id);
+
+    expect(loadTasks(listId)[0]).toMatchObject({ done: true, status: null });
+  });
+
+  it("moveToBoard files open tasks under backlog and finished ones under done", () => {
+    const open = addTask(listId, "Open");
+    const finished = addTask(listId, "Finished");
+    toggleTask(finished.id);
+
+    expect(moveToBoard(open.id)).toMatchObject({ task: { status: "backlog" } });
+    expect(moveToBoard(finished.id)).toMatchObject({ task: { status: "done" } });
+  });
+
+  it("moveToBoard leaves a task that is already on the board where it is", () => {
+    const task = addTask(listId, "Buy milk");
+    setStatus(task.id, "in-progress");
+
+    expect(moveToBoard(task.id)).toMatchObject({ task: { status: "in-progress" } });
+  });
+
+  it("the board gathers tasks from every list", () => {
+    const other = createList("Other");
+    const a = addTask(listId, "A");
+    const b = addTask(other.id, "B");
+    setStatus(a.id, "todo");
+    setStatus(b.id, "backlog");
+
+    expect(loadBoardTasks().map((t) => t.id)).toEqual([a.id, b.id]);
+  });
+
+  it("adds the status column to a database created before boards existed", () => {
+    const legacyHome = fs.mkdtempSync(path.join(os.tmpdir(), "taskfile-test-"));
+    process.env.HOME = legacyHome;
+    try {
+      fs.mkdirSync(path.join(legacyHome, ".taskfile"));
+      const legacy = new DatabaseSync(path.join(legacyHome, ".taskfile", "tasks.db"));
+      legacy.exec("CREATE TABLE tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, createdAt TEXT NOT NULL)");
+      legacy.prepare("INSERT INTO tasks (text, done, createdAt) VALUES ('Old', 0, '')").run();
+      legacy.close();
+
+      expect(loadTasks(getDefaultListId())).toMatchObject([{ text: "Old", status: null }]);
+    } finally {
+      process.env.HOME = tempHome;
+      fs.rmSync(legacyHome, { recursive: true, force: true });
+    }
   });
 });
