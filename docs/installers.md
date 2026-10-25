@@ -16,7 +16,7 @@ Each installer is the same three things, wrapped in the platform's native packag
 
 ```
 taskfile/
-  runtime/node        official Node.js binary for that OS/arch (pinned in scripts/installers/targets.ts)
+  runtime/node        official Node.js binary for that OS/arch (pinned in apps/cli/scripts/installers/targets.ts)
   app/dist            compiled TypeScript (`npm run build`)
   app/node_modules    production dependencies only (`npm ci --omit=dev`)
 ```
@@ -28,9 +28,9 @@ size (~40 MB per installer).
 
 The Node.js archive is downloaded from nodejs.org and verified against the published
 `SHASUMS256.txt` before use; the build fails on a mismatch. To bump the bundled Node.js, change
-`NODE_VERSION` in [`scripts/installers/targets.ts`](../scripts/installers/targets.ts).
+`NODE_VERSION` in [`apps/cli/scripts/installers/targets.ts`](../apps/cli/scripts/installers/targets.ts).
 
-Code lives in [`scripts/installers/`](../scripts/installers):
+Code lives in [`apps/cli/scripts/installers/`](../apps/cli/scripts/installers):
 
 - `targets.ts` — platform/arch matrix, artifact names, launcher and `.deb` control file contents (pure, unit-tested)
 - `stage.ts` — builds the `runtime/` + `app/` tree

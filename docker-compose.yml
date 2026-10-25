@@ -1,0 +1,16 @@
+# Local web app. The host port is yours to pick:
+#   TASKFILE_PORT=4321 docker compose up --build   -> http://localhost:4321
+#   docker compose up --build                      -> Docker assigns a free port;
+#                                                     run `docker compose port web 8080` to find it
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:${TASKFILE_PORT:-0}:8080"
+    volumes:
+      - taskfile-data:/data
+
+volumes:
+  taskfile-data:

@@ -25,4 +25,4 @@ jobs:
 
       # Confirms the compiled output actually loads and runs, not just that tsc succeeded.
       - name: Smoke-test the compiled CLI
-        run: node dist/index.js --help
+        run: node apps/cli/dist/index.js --help

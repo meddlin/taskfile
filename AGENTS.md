@@ -2,7 +2,20 @@
 
 ## Project Structure & Module Organization
 
-This repository contains a small TypeScript command-line task manager. `src/index.ts` defines the
+This is an npm-workspaces monorepo: `apps/cli` is the command-line/TUI task manager
+(`@rushinglabs/taskfile`, published to npm and packaged as native installers) and `apps/web` is a
+minimal web version (`@taskfile/web`: TanStack Start, Tailwind, shadcn/ui, SQLite via `node:sqlite`).
+All paths below that start with `src/` or `scripts/` are relative to `apps/cli`. Run `npm install`,
+`npm test` and `npm run build` from the repository root; they cover every workspace. The lockfile and
+`LICENSE` live at the root.
+
+The web app keeps its own store (`apps/web/src/server/store.ts`) with the same table layout as the
+CLI's, so both can open one database file. `TASKFILE_DB` selects the file (default `~/.taskfile/tasks.db`).
+Ports are never hardcoded: set `PORT` to choose one, otherwise a free port is picked (dev server:
+`vite.config.ts`; production: `server.mjs`). `apps/web/Dockerfile` (build from the repo root) and
+`docker-compose.yml` run it locally; the host port comes from `TASKFILE_PORT` or Docker picks a free one.
+
+The CLI is a small TypeScript command-line task manager. `src/index.ts` defines the
 Commander CLI and routes subcommands. Command handlers live in `src/commands/` (`add.ts`, `list.ts`,
 and `remove.ts`), while `src/store.ts` owns the SQLite persistence layer and shared `Task` type.
 Tests are colocated with their subjects as `*.test.ts`/`*.test.tsx`. TypeScript builds into the

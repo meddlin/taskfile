@@ -142,7 +142,7 @@ first release that's `0.2.0`.
 
 Apply the semver rules above to decide patch/minor/major.
 
-The CLI's `--version` output ([`src/index.ts`](../src/index.ts)) reads the version from
+The CLI's `--version` output ([`apps/cli/src/index.ts`](../apps/cli/src/index.ts)) reads the version from
 `package.json` at runtime, so it always matches whatever `npm version` just set — no separate file
 to remember to update.
 
