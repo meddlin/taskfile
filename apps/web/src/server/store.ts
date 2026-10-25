@@ -54,9 +54,16 @@ function ensureSchema(db: DatabaseSync): void {
       createdAt TEXT NOT NULL,
       parentId INTEGER REFERENCES tasks(id),
       priority INTEGER NOT NULL DEFAULT 0,
-      listId INTEGER REFERENCES lists(id)
+      listId INTEGER REFERENCES lists(id),
+      status TEXT
     )
   `);
+
+  // Databases created before the CLI's board feature (or by an older web build) lack this column.
+  const columns = db.prepare("PRAGMA table_info(tasks)").all() as unknown as { name: string }[];
+  if (!columns.some((column) => column.name === "status")) {
+    db.exec("ALTER TABLE tasks ADD COLUMN status TEXT");
+  }
 
   const { count } = db.prepare("SELECT COUNT(*) AS count FROM lists").get() as unknown as { count: number };
   if (count === 0) {
@@ -151,6 +158,15 @@ export class TaskStore {
     }
 
     this.db.prepare("UPDATE tasks SET done = ? WHERE id = ?").run(nextDone ? 1 : 0, id);
+    // Tasks on the CLI's board keep their column in step with the checkbox.
+    const status = this.db.prepare("SELECT status FROM tasks WHERE id = ?").get(id) as unknown as { status: string | null };
+    if (status.status !== null) {
+      if (nextDone) {
+        this.db.prepare("UPDATE tasks SET status = 'done' WHERE id = ?").run(id);
+      } else if (status.status === "done") {
+        this.db.prepare("UPDATE tasks SET status = 'todo' WHERE id = ?").run(id);
+      }
+    }
     if (!nextDone && row.parentId !== null) {
       this.db.prepare("UPDATE tasks SET done = 0 WHERE id = ? AND done = 1").run(row.parentId);
     }

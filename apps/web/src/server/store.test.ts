@@ -67,6 +67,20 @@ describe("TaskStore", () => {
     expect(store.loadTasks(list!.id)).toEqual([]);
   });
 
+  it("keeps a CLI board column in step with the checkbox", () => {
+    const [list] = store.loadLists();
+    const task = ok(store.addTask(list!.id, "a"));
+    const raw = new DatabaseSync(file);
+    raw.prepare("UPDATE tasks SET status = 'backlog' WHERE id = ?").run(task.id);
+    const column = () => (raw.prepare("SELECT status FROM tasks WHERE id = ?").get(task.id) as { status: string }).status;
+
+    ok(store.toggleTask(task.id));
+    expect(column()).toBe("done");
+    ok(store.toggleTask(task.id));
+    expect(column()).toBe("todo");
+    raw.close();
+  });
+
   // Sub-items are created by the CLI/TUI; the web app must respect the same rules on a shared file.
   describe("sub-items created by the CLI", () => {
     function addSubItem(parentId: number, listId: number): number {
