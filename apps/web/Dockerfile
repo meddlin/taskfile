@@ -9,7 +9,7 @@
 # /data is bind-mounted from a folder on your machine, so tasks survive the container. The Settings
 # page can move the database to another file under /data. See also docker-compose.yml.
 
-FROM node:24-slim AS build
+FROM node:25-slim AS build
 WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/cli/package.json apps/cli/package.json
@@ -19,7 +19,7 @@ COPY apps/web apps/web
 RUN npm run build --workspace @taskfile/web \
  && npm prune --omit=dev --workspace @taskfile/web
 
-FROM node:24-slim
+FROM node:25-slim
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8080 \
