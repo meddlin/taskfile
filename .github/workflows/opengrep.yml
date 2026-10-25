@@ -37,6 +37,8 @@ jobs:
           echo "${OPENGREP_SHA256}  $RUNNER_TEMP/opengrep" | sha256sum --check
           chmod +x "$RUNNER_TEMP/opengrep"
 
+      # Skipped on purpose: tests are not shipped, and the i18next rule is a portability nudge that flags
+      # every user-facing string in the English-only apps (24 findings across the web app and the TUI).
       - name: Scan
         run: |
           "$RUNNER_TEMP/opengrep" scan \
@@ -45,9 +47,20 @@ jobs:
             --exclude .opengrep-rules \
             --exclude node_modules \
             --exclude dist \
-            --error \
+            --exclude '*.test.ts' \
+            --exclude '*.test.tsx' \
+            --exclude-rule opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized \
             --sarif-output=opengrep.sarif \
             .
+
+      # Opengrep still lists findings silenced with an in-source `nosemgrep` comment (marked as
+      # suppressed in the SARIF) and `--error` would fail on them, so gate on unsuppressed results only.
+      - name: Fail on unsuppressed findings
+        run: |
+          jq -r '.runs[] | (.results // [])[] | select((.suppressions // []) | length == 0)
+            | "\(.ruleId) \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine)"' \
+            opengrep.sarif | tee findings.txt
+          test ! -s findings.txt
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()

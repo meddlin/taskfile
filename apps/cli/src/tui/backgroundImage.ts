@@ -28,6 +28,8 @@ export function expandHome(file: string): string {
 export function loadBackgroundImage(file: string): BackgroundImage {
   let decoded: PNG;
   try {
+    // Reading the image the user chose is the feature; this local TUI has no privilege boundary.
+    // nosemgrep: opengrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename
     decoded = PNG.sync.read(fs.readFileSync(expandHome(file)));
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);

@@ -15,6 +15,13 @@ Ports are never hardcoded: set `PORT` to choose one, otherwise a free port is pi
 `vite.config.ts`; production: `server.mjs`). `apps/web/Dockerfile` (build from the repo root) and
 `docker-compose.yml` run it locally; the host port comes from `TASKFILE_PORT` or Docker picks a free one.
 
+The web app's `/settings` page (`apps/web/src/routes/settings.tsx`) sets the color scheme and page
+background and shows where the database lives. Both preferences are per-browser (`localStorage`, applied
+before first paint by inline init scripts: `src/lib/theme.ts`, `src/lib/background.ts`). Backgrounds are
+CSS in `src/styles.css`, keyed by `html[data-background]` and reused as `.backdrop-*` for the previews;
+add one by extending `BACKGROUND_OPTIONS` and adding a light and dark rule there. The database path
+comes from `src/server/data-location.ts` (`TASKFILE_DB` or the default).
+
 The CLI is a small TypeScript command-line task manager. `src/index.ts` defines the
 Commander CLI and routes subcommands. Command handlers live in `src/commands/` (`add.ts`, `list.ts`,
 and `remove.ts`), while `src/store.ts` owns the SQLite persistence layer and shared `Task` type.

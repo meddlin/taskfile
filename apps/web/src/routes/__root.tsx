@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router";
+import { backgroundInitScript } from "~/lib/background";
 import { themeInitScript } from "~/lib/theme";
 import appCss from "~/styles.css?url";
 
@@ -23,7 +24,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript() + backgroundInitScript() }} />
         <HeadContent />
       </head>
       <body>
