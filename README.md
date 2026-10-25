@@ -32,12 +32,35 @@ npm install
 npm run dev:web          # starts on a free port (printed at startup); PORT=4321 npm run dev:web to choose
 ```
 
-Run it in Docker (build from the repo root; data persists in the `taskfile-data` volume):
+### Run with Docker Compose
 
-```bash
-TASKFILE_PORT=4321 docker compose up --build   # http://localhost:4321
-docker compose up --build                      # Docker picks a free port: docker compose port web 8080
-```
+Requires Docker with the Compose plugin. Run these from the repository root (the image is built from
+there using `apps/web/Dockerfile`).
+
+1. Start the app, choosing a host port with `TASKFILE_PORT`:
+
+   ```bash
+   TASKFILE_PORT=4321 docker compose up --build
+   ```
+
+   Then open <http://localhost:4321>. The port is bound to `127.0.0.1`, so it is only reachable from
+   your machine.
+
+2. Or omit `TASKFILE_PORT` and let Docker pick a free port, then look it up:
+
+   ```bash
+   docker compose up --build
+   docker compose port web 8080
+   ```
+
+3. Add `-d` to run in the background, and stop it with:
+
+   ```bash
+   docker compose down
+   ```
+
+Data is stored in the `taskfile-data` Docker volume, so it survives restarts. `docker compose down`
+keeps it; `docker compose down -v` deletes it.
 
 Locally the web app uses the same database as the CLI (`~/.taskfile/tasks.db`); override with `TASKFILE_DB`.
 
