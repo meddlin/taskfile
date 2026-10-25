@@ -6,6 +6,7 @@
 import { serve } from "srvx";
 import { staticMiddleware } from "srvx/static";
 import server from "./dist/server/server.js";
+import { listenMessage } from "./listen-message.mjs";
 
 const port = process.env.PORT === undefined || process.env.PORT === "" ? 0 : Number(process.env.PORT);
 if (!Number.isInteger(port) || port < 0 || port > 65535) {
@@ -13,9 +14,12 @@ if (!Number.isInteger(port) || port < 0 || port > 65535) {
   process.exit(1);
 }
 
-serve({
+const instance = serve({
   fetch: server.fetch,
   port,
   hostname: process.env.HOST ?? "127.0.0.1",
   middleware: [staticMiddleware({ dir: new URL("./dist/client", import.meta.url).pathname })],
+  silent: true, // srvx's banner shows the container-internal port under Docker; see listen-message.mjs
 });
+await instance.ready();
+console.log(listenMessage(instance.url, process.env));

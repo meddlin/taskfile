@@ -9,6 +9,9 @@ services:
       dockerfile: apps/web/Dockerfile
     ports:
       - "127.0.0.1:${TASKFILE_PORT:-0}:8080"
+    environment:
+      # Only so the startup log can print the host URL; 8080 is internal to the container.
+      TASKFILE_PUBLISHED_PORT: "${TASKFILE_PORT:-}"
     volumes:
       - taskfile-data:/data
 
