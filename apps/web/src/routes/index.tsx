@@ -1,7 +1,18 @@
 import { startTransition, useEffect, useOptimistic, useRef, useState, type FormEvent } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { PageNav } from "~/components/PageNav";
 import { cn } from "~/lib/utils";
-import { addTask, createList, getBoard, removeTask, toggleTask, type ActionResult } from "~/server/functions";
+import { STATUS_LABELS, stepStatus } from "~/server/board";
+import {
+  addTask,
+  createList,
+  getBoard,
+  removeTask,
+  sendToBoard,
+  setTaskStatus,
+  toggleTask,
+  type ActionResult,
+} from "~/server/functions";
 import type { Task } from "~/server/store";
 
 export const Route = createFileRoute("/")({
@@ -14,12 +25,20 @@ export const Route = createFileRoute("/")({
   component: TasksPage,
 });
 
-type Change = { type: "toggle"; id: number } | { type: "remove"; id: number };
+type Change = { type: "toggle"; id: number } | { type: "remove"; id: number } | { type: "board"; id: number };
 
 // Applies a pending change straight away so the UI never waits on the server round trip.
 function applyChange(tasks: Task[], change: Change): Task[] {
   if (change.type === "remove") return tasks.filter((t) => t.id !== change.id);
-  return tasks.map((t) => (t.id === change.id ? { ...t, done: !t.done } : t));
+  if (change.type === "board") {
+    return tasks.map((t) => (t.id === change.id && t.status === null ? { ...t, status: t.done ? "done" : "backlog" } : t));
+  }
+  return tasks.map((t) => {
+    if (t.id !== change.id) return t;
+    const done = !t.done;
+    // A task on the board keeps its column in step with the checkbox.
+    return { ...t, done, status: t.status === null ? null : done ? "done" : t.status === "done" ? "todo" : t.status };
+  });
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -54,6 +73,20 @@ function TasksPage() {
     startTransition(async () => {
       change({ type: "toggle", id });
       await run(toggleTask({ data: { id } }));
+    });
+  }
+
+  function sendTaskToBoard(task: Task) {
+    startTransition(async () => {
+      change({ type: "board", id: task.id });
+      await run(sendToBoard({ data: { id: task.id } }));
+    });
+  }
+
+  // Steps a task through the board columns; past the last one it comes off the board again.
+  function cycleStatus(task: Task) {
+    startTransition(async () => {
+      await run(setTaskStatus({ data: { id: task.id, status: stepStatus(task.status, 1, true) } }));
     });
   }
 
@@ -118,6 +151,12 @@ function TasksPage() {
         case "x":
           if (current) setConfirmId(current.id);
           break;
+        case "m":
+          if (current) sendTaskToBoard(current);
+          break;
+        case "t":
+          if (current) cycleStatus(current);
+          break;
         case "a":
         case "/":
           taskInput.current?.focus();
@@ -147,9 +186,12 @@ function TasksPage() {
           <span className="text-accent">$</span> taskfile
           <span aria-hidden className="animate-blink ml-1 inline-block h-[1em] w-[0.6em] translate-y-[0.15em] bg-accent" />
         </h1>
-        <span className="text-muted-foreground">
-          {done}/{tasks.length} done
-        </span>
+        <div className="flex items-baseline gap-4">
+          <span className="text-muted-foreground">
+            {done}/{tasks.length} done
+          </span>
+          <PageNav />
+        </div>
       </header>
 
       <nav aria-label="Lists" className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -259,6 +301,29 @@ function TasksPage() {
                   )}
                   {task.text}
                 </span>
+                {task.status !== null && (
+                  <button
+                    type="button"
+                    aria-label={`Status of "${task.text}": ${STATUS_LABELS[task.status]}. Cycle status`}
+                    onClick={() => cycleStatus(task)}
+                    className="animate-fade-in cursor-pointer text-accent transition-opacity duration-150 hover:opacity-70"
+                  >
+                    [{task.status}]
+                  </button>
+                )}
+                {task.status === null && (
+                  <button
+                    type="button"
+                    aria-label={`Send "${task.text}" to the board`}
+                    onClick={() => sendTaskToBoard(task)}
+                    className={cn(
+                      "cursor-pointer text-muted-foreground transition-opacity duration-150 hover:text-accent focus-visible:opacity-100",
+                      !isSelected && "opacity-0",
+                    )}
+                  >
+                    [m]
+                  </button>
+                )}
                 {confirmId === task.id ? (
                   <span className="animate-fade-in flex items-center gap-2 text-destructive">
                     delete?
@@ -289,7 +354,7 @@ function TasksPage() {
       )}
 
       <footer className="mt-auto pt-6 text-muted-foreground">
-        j/k move · space toggle · d delete · a add · [ ] switch list
+        j/k move · space toggle · d delete · m board · t status · a add · [ ] switch list
       </footer>
     </main>
   );

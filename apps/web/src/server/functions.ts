@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { TaskStatus } from "./board";
 import type { List, Task } from "./store";
 
 // Handlers import the store lazily so node:sqlite never reaches the client bundle.
@@ -48,3 +49,21 @@ export const removeTask = createServerFn({ method: "POST" })
 export const createList = createServerFn({ method: "POST" })
   .validator((data: { name: string }) => data)
   .handler(async ({ data }): Promise<ActionResult> => toResult((await store()).createList(data.name)));
+
+export interface StatusBoard {
+  lists: List[];
+  tasks: Task[];
+}
+
+export const getStatusBoard = createServerFn({ method: "GET" }).handler(async (): Promise<StatusBoard> => {
+  const s = await store();
+  return { lists: s.loadLists(), tasks: s.loadBoardTasks() };
+});
+
+export const setTaskStatus = createServerFn({ method: "POST" })
+  .validator((data: { id: number; status: TaskStatus | null }) => data)
+  .handler(async ({ data }): Promise<ActionResult> => toResult((await store()).setStatus(data.id, data.status)));
+
+export const sendToBoard = createServerFn({ method: "POST" })
+  .validator((data: { id: number }) => data)
+  .handler(async ({ data }): Promise<ActionResult> => toResult((await store()).moveToBoard(data.id)));
