@@ -36,6 +36,7 @@ function BoardPage() {
   // Drag and drop: the card being dragged and the column it is currently over.
   const [dragId, setDragId] = useState<number | null>(null);
   const [overStatus, setOverStatus] = useState<TaskStatus | null>(null);
+  const [overRemove, setOverRemove] = useState(false);
 
   const columns = groupByStatus(tasks);
   const listName = (id: number) => lists.find((l) => l.id === id)?.name ?? "?";
@@ -174,6 +175,7 @@ function BoardPage() {
                     onDragEnd={() => {
                       setDragId(null);
                       setOverStatus(null);
+                      setOverRemove(false);
                     }}
                     onClick={() => {
                       setCol(c);
@@ -194,13 +196,16 @@ function BoardPage() {
                     </span>
                     <span className="flex items-center justify-between pl-4 text-muted-foreground">
                       <span>{listName(task.listId)}</span>
-                      <span className={cn("flex gap-2 transition-opacity duration-150", !isSelected && "opacity-0")}>
+                      <span className="flex gap-2">
                         <button
                           type="button"
                           aria-label={`Move "${task.text}" left`}
                           disabled={c === 0}
                           onClick={() => move(task, stepStatus(task.status, -1, false))}
-                          className="cursor-pointer hover:text-accent disabled:cursor-default disabled:opacity-30"
+                          className={cn(
+                            "cursor-pointer transition-opacity duration-150 hover:text-accent disabled:cursor-default disabled:opacity-30",
+                            !isSelected && "invisible",
+                          )}
                         >
                           [&lt;]
                         </button>
@@ -209,7 +214,10 @@ function BoardPage() {
                           aria-label={`Move "${task.text}" right`}
                           disabled={c === TASK_STATUSES.length - 1}
                           onClick={() => move(task, stepStatus(task.status, 1, false))}
-                          className="cursor-pointer hover:text-accent disabled:cursor-default disabled:opacity-30"
+                          className={cn(
+                            "cursor-pointer transition-opacity duration-150 hover:text-accent disabled:cursor-default disabled:opacity-30",
+                            !isSelected && "invisible",
+                          )}
                         >
                           [&gt;]
                         </button>
@@ -231,8 +239,33 @@ function BoardPage() {
         ))}
       </div>
 
+      {dragId !== null && (
+        <div
+          aria-label="Drop here to take off the board"
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setOverRemove(true);
+          }}
+          onDragLeave={() => setOverRemove(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            const dropped = tasks.find((t) => t.id === dragId);
+            setDragId(null);
+            setOverRemove(false);
+            if (dropped) move(dropped, null);
+          }}
+          className={cn(
+            "animate-fade-in border border-dashed py-3 text-center transition-colors duration-150",
+            overRemove ? "border-destructive bg-highlight text-destructive" : "border-border text-muted-foreground",
+          )}
+        >
+          drop here to take off the board
+        </div>
+      )}
+
       <footer className="mt-auto pt-6 text-muted-foreground">
-        drag cards between columns · j/k move · [ ] column · , . move card · r remove
+        drag cards between columns or onto the remove bar · j/k move · [ ] column · , . move card · r remove
       </footer>
     </main>
   );
