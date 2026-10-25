@@ -5,6 +5,7 @@ import { ThemeToggle } from "~/components/theme-toggle";
 import { cn } from "~/lib/utils";
 import { STATUS_LABELS, stepStatus } from "~/server/board";
 import {
+  addSubTask,
   addTask,
   createList,
   getBoard,
@@ -61,6 +62,9 @@ function TasksPage() {
 
   const cursor = Math.min(selected, Math.max(tasks.length - 1, 0));
   const activeList = lists.find((l) => l.id === activeListId);
+  // The top-level task whose sub-task form is open, if any.
+  const [subTaskParentId, setSubTaskParentId] = useState<number | null>(null);
+  const [subTaskText, setSubTaskText] = useState("");
 
   // Runs a mutation, shows its error if any, and refreshes the loader data afterwards.
   async function run(action: Promise<ActionResult>): Promise<ActionResult> {
@@ -105,6 +109,22 @@ function TasksPage() {
     if (!result.error) setText("");
   }
 
+  async function onAddSubTask(e: FormEvent, parentId: number) {
+    e.preventDefault();
+    const result = await run(addSubTask({ data: { parentId, text: subTaskText } }));
+    if (!result.error) closeSubTaskForm();
+  }
+
+  function toggleSubTaskForm(parentId: number) {
+    setSubTaskText("");
+    setSubTaskParentId(subTaskParentId === parentId ? null : parentId);
+  }
+
+  function closeSubTaskForm() {
+    setSubTaskText("");
+    setSubTaskParentId(null);
+  }
+
   async function onAddList(e: FormEvent) {
     e.preventDefault();
     const result = await run(createList({ data: { name: listName } }));
@@ -123,6 +143,7 @@ function TasksPage() {
         if (e.key === "Escape") {
           (e.target as HTMLElement).blur();
           setAddingList(false);
+          closeSubTaskForm();
         }
         return;
       }
@@ -151,6 +172,13 @@ function TasksPage() {
         case "d":
         case "x":
           if (current) setConfirmId(current.id);
+          break;
+        case "s":
+          // Like the TUI: a sub-item row adds a sibling under the same parent.
+          if (current) {
+            setSubTaskText("");
+            setSubTaskParentId(current.parentId ?? current.id);
+          }
           break;
         case "m":
           if (current) sendTaskToBoard(current);
@@ -265,89 +293,122 @@ function TasksPage() {
           {tasks.map((task, i) => {
             const isSelected = i === cursor;
             return (
-              <li
-                key={task.id}
-                onMouseEnter={() => setSelected(i)}
-                className={cn(
-                  "animate-row-in flex items-center gap-2 px-1 py-1 transition-colors duration-100",
-                  isSelected && "bg-highlight",
-                  task.parentId !== null && "pl-7",
-                )}
-              >
-                <span aria-hidden className={cn("w-3 text-accent", !isSelected && "invisible")}>
-                  &gt;
-                </span>
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={task.done}
-                  aria-label={`Mark "${task.text}" ${task.done ? "not done" : "done"}`}
-                  onClick={() => toggle(task.id)}
-                  className="cursor-pointer"
-                >
-                  {/* Keyed on state so each flip replays the small pop. */}
-                  <span key={String(task.done)} className={cn("inline-block", task.done ? "animate-pop text-accent" : "text-muted-foreground")}>
-                    {task.done ? "[x]" : "[ ]"}
-                  </span>
-                </button>
-                <span
+              <li key={task.id}>
+                <div
+                  onMouseEnter={() => setSelected(i)}
                   className={cn(
-                    "flex-1 break-words transition-colors duration-200",
-                    task.done && "text-muted-foreground line-through",
+                    "animate-row-in flex items-center gap-2 px-1 py-1 transition-colors duration-100",
+                    isSelected && "bg-highlight",
+                    task.parentId !== null && "pl-7",
                   )}
                 >
-                  {task.priority && (
-                    <span aria-label="Priority" className="text-accent">
-                      ★{" "}
-                    </span>
-                  )}
-                  {task.text}
-                </span>
-                {task.status !== null && (
-                  <button
-                    type="button"
-                    aria-label={`Status of "${task.text}": ${STATUS_LABELS[task.status]}. Cycle status`}
-                    onClick={() => cycleStatus(task)}
-                    className="animate-fade-in cursor-pointer text-accent transition-opacity duration-150 hover:opacity-70"
-                  >
-                    [{task.status}]
-                  </button>
-                )}
-                {task.status === null && (
-                  <button
-                    type="button"
-                    aria-label={`Send "${task.text}" to the board`}
-                    onClick={() => sendTaskToBoard(task)}
-                    className={cn(
-                      "cursor-pointer text-muted-foreground transition-opacity duration-150 hover:text-accent focus-visible:opacity-100",
-                      !isSelected && "opacity-0",
-                    )}
-                  >
-                    [m]
-                  </button>
-                )}
-                {confirmId === task.id ? (
-                  <span className="animate-fade-in flex items-center gap-2 text-destructive">
-                    delete?
-                    <button type="button" onClick={() => remove(task.id)} className="cursor-pointer underline">
-                      y
-                    </button>
-                    <button type="button" onClick={() => setConfirmId(null)} className="cursor-pointer underline">
-                      n
-                    </button>
+                  <span aria-hidden className={cn("w-3 text-accent", !isSelected && "invisible")}>
+                    &gt;
                   </span>
-                ) : (
                   <button
                     type="button"
-                    aria-label={`Delete "${task.text}"`}
-                    onClick={() => setConfirmId(task.id)}
+                    role="checkbox"
+                    aria-checked={task.done}
+                    aria-label={`Mark "${task.text}" ${task.done ? "not done" : "done"}`}
+                    onClick={() => toggle(task.id)}
+                    className="cursor-pointer"
+                  >
+                    {/* Keyed on state so each flip replays the small pop. */}
+                    <span key={String(task.done)} className={cn("inline-block", task.done ? "animate-pop text-accent" : "text-muted-foreground")}>
+                      {task.done ? "[x]" : "[ ]"}
+                    </span>
+                  </button>
+                  <span
                     className={cn(
-                      "cursor-pointer text-muted-foreground transition-opacity duration-150 hover:text-destructive focus-visible:opacity-100",
-                      !isSelected && "opacity-0",
+                      "flex-1 break-words transition-colors duration-200",
+                      task.done && "text-muted-foreground line-through",
                     )}
                   >
-                    [d]
-                  </button>
+                    {task.priority && (
+                      <span aria-label="Priority" className="text-accent">
+                        ★{" "}
+                      </span>
+                    )}
+                    {task.text}
+                  </span>
+                  {task.parentId === null && (
+                    <button
+                      type="button"
+                      aria-label={`Add sub-task to "${task.text}"`}
+                      aria-expanded={subTaskParentId === task.id}
+                      onClick={() => toggleSubTaskForm(task.id)}
+                      className={cn(
+                        "cursor-pointer text-muted-foreground transition-opacity duration-150 hover:text-accent focus-visible:opacity-100",
+                        !isSelected && subTaskParentId !== task.id && "opacity-0",
+                      )}
+                    >
+                      [s]
+                    </button>
+                  )}
+                  {task.status !== null && (
+                    <button
+                      type="button"
+                      aria-label={`Status of "${task.text}": ${STATUS_LABELS[task.status]}. Cycle status`}
+                      onClick={() => cycleStatus(task)}
+                      className="animate-fade-in cursor-pointer text-accent transition-opacity duration-150 hover:opacity-70"
+                    >
+                      [{task.status}]
+                    </button>
+                  )}
+                  {task.status === null && (
+                    <button
+                      type="button"
+                      aria-label={`Send "${task.text}" to the board`}
+                      onClick={() => sendTaskToBoard(task)}
+                      className={cn(
+                        "cursor-pointer text-muted-foreground transition-opacity duration-150 hover:text-accent focus-visible:opacity-100",
+                        !isSelected && "opacity-0",
+                      )}
+                    >
+                      [m]
+                    </button>
+                  )}
+                  {confirmId === task.id ? (
+                    <span className="animate-fade-in flex items-center gap-2 text-destructive">
+                      delete?
+                      <button type="button" onClick={() => remove(task.id)} className="cursor-pointer underline">
+                        y
+                      </button>
+                      <button type="button" onClick={() => setConfirmId(null)} className="cursor-pointer underline">
+                        n
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      aria-label={`Delete "${task.text}"`}
+                      onClick={() => setConfirmId(task.id)}
+                      className={cn(
+                        "cursor-pointer text-muted-foreground transition-opacity duration-150 hover:text-destructive focus-visible:opacity-100",
+                        !isSelected && "opacity-0",
+                      )}
+                    >
+                      [d]
+                    </button>
+                  )}
+                </div>
+                {subTaskParentId === task.id && (
+                  <form onSubmit={(e) => onAddSubTask(e, task.id)} className="animate-fade-in flex items-center gap-2 py-1 pl-7">
+                    <span aria-hidden className="text-accent">
+                      +
+                    </span>
+                    <input
+                      autoFocus
+                      aria-label={`New sub-task for "${task.text}"`}
+                      placeholder="add a sub-task…"
+                      autoComplete="off"
+                      value={subTaskText}
+                      onChange={(e) => setSubTaskText(e.target.value)}
+                      onBlur={() => subTaskText === "" && closeSubTaskForm()}
+                      className="min-w-0 flex-1 bg-transparent caret-accent outline-none placeholder:text-muted-foreground"
+                    />
+                    <kbd className="hidden text-muted-foreground sm:inline">{subTaskText.trim() ? "↵ add" : "esc"}</kbd>
+                  </form>
                 )}
               </li>
             );
@@ -356,7 +417,7 @@ function TasksPage() {
       )}
 
       <footer className="mt-auto pt-6 text-muted-foreground">
-        j/k move · space toggle · d delete · m board · t status · a add · [ ] switch list
+        j/k move · space toggle · s sub-task · d delete · m board · t status · a add · [ ] switch list
       </footer>
     </main>
   );

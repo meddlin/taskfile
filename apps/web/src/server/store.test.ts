@@ -139,6 +139,40 @@ describe("TaskStore", () => {
     });
   });
 
+  describe("addSubTask", () => {
+    it("adds a sub-item in the parent's list, ordered right after the parent", () => {
+      const [first] = store.loadLists();
+      const other = ok(store.createList("Other"));
+      const parent = ok(store.addTask(other.id, "parent"));
+      ok(store.addTask(other.id, "sibling"));
+      const child = ok(store.addSubTask(parent.id, "  child  "));
+
+      expect(child).toMatchObject({ text: "child", parentId: parent.id, listId: other.id, done: false });
+      expect(store.loadTasks(other.id).map((t) => t.text)).toEqual(["parent", "child", "sibling"]);
+      expect(store.loadTasks(first!.id)).toEqual([]);
+    });
+
+    it("reopens a completed parent", () => {
+      const [list] = store.loadLists();
+      const parent = ok(store.addTask(list!.id, "parent"));
+      ok(store.toggleTask(parent.id));
+      ok(store.addSubTask(parent.id, "child"));
+
+      expect(store.loadTasks(list!.id).map((t) => t.done)).toEqual([false, false]);
+    });
+
+    it("rejects empty text, unknown parents and nested sub-items", () => {
+      const [list] = store.loadLists();
+      const parent = ok(store.addTask(list!.id, "parent"));
+      const child = ok(store.addSubTask(parent.id, "child"));
+
+      expect(store.addSubTask(parent.id, "   ")).toMatchObject({ status: "blocked" });
+      expect(store.addSubTask(9999, "orphan")).toEqual({ status: "not-found" });
+      expect(store.addSubTask(child.id, "grandchild")).toMatchObject({ status: "blocked" });
+      expect(store.loadTasks(list!.id)).toHaveLength(2);
+    });
+  });
+
   // Sub-items are created by the CLI/TUI; the web app must respect the same rules on a shared file.
   describe("sub-items created by the CLI", () => {
     function addSubItem(parentId: number, listId: number): number {

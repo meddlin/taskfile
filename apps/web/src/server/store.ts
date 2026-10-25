@@ -144,6 +144,32 @@ export class TaskStore {
     };
   }
 
+  // Sub-items are one level deep and live in their parent's list. A completed parent is reopened,
+  // since it can't be done while it has open sub-items.
+  addSubTask(parentId: number, text: string): MutationResult<Task> {
+    const trimmed = text.trim();
+    if (trimmed.length === 0) {
+      return { status: "blocked", reason: "Task text cannot be empty." };
+    }
+    const parent = this.getTask(parentId);
+    if (!parent) {
+      return { status: "not-found" };
+    }
+    if (parent.parentId !== null) {
+      return { status: "blocked", reason: "Sub-items cannot have their own sub-items." };
+    }
+    const createdAt = new Date().toISOString();
+    const info = this.db
+      .prepare("INSERT INTO tasks (text, done, createdAt, parentId, listId) VALUES (?, 0, ?, ?, ?)")
+      .run(trimmed, createdAt, parentId, parent.listId);
+    this.db.prepare("UPDATE tasks SET done = 0 WHERE id = ? AND done = 1").run(parentId);
+    this.db.prepare("UPDATE tasks SET status = 'todo' WHERE id = ? AND status = 'done'").run(parentId);
+    return {
+      status: "ok",
+      value: { id: Number(info.lastInsertRowid), text: trimmed, done: false, parentId, priority: false, listId: parent.listId, status: null, createdAt },
+    };
+  }
+
   private getTask(id: number): TaskRow | undefined {
     return this.db.prepare(`SELECT ${TASK_COLUMNS} FROM tasks WHERE id = ?`).get(id) as unknown as TaskRow | undefined;
   }
