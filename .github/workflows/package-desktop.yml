@@ -1,0 +1,45 @@
+name: Package desktop
+
+# Builds the desktop app unsigned and runs the packaged app's smoke test. ci-build.yml only
+# compiles the app on Linux; this is the one check that the macOS bundle still comes together and
+# starts (bundled web server, node:sqlite inside Electron). It needs no secrets.
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "apps/desktop/**"
+      - "apps/web/**"
+      - "package-lock.json"
+      - ".github/workflows/package-desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-desktop:
+    # macos-latest is Apple Silicon, so this packages (and runs) the arm64 app.
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.x"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npm run build -w @taskfile/web
+
+      - name: Package the app (unsigned)
+        run: npm run package -w @taskfile/desktop
+
+      - name: Smoke-test the packaged app
+        run: node apps/desktop/scripts/smoke.mjs apps/desktop/release/mac-arm64/Taskfile.app/Contents/MacOS/Taskfile

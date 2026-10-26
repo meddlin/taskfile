@@ -20,5 +20,8 @@ jobs:
           cache: 'npm'
 
       - run: npm ci
+        env:
+          # Only the packaging workflows need the Electron binary.
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
 
       - run: npm test

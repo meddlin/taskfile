@@ -38,6 +38,11 @@ CI/CD
     - [x] GitHub Action that builds, smoke-tests, and releases them (manual-run only for now; tag trigger disabled to save Actions minutes)
     - [] Code signing / notarization
 
+- [x] Desktop app (Electron, `apps/desktop`): see [docs/desktop.md](./desktop.md)
+    - [x] Tag-driven macOS release (`desktop-v*`) with a manual approval before publishing (see [docs/desktop-release.md](./desktop-release.md))
+    - [x] Over-the-air updates from GitHub Releases, normal and pre-release, from Settings (see [docs/desktop-updates.md](./desktop-updates.md))
+    - [] First signed release (needs the Apple credentials and GitHub environments from that doc)
+
 - [x] Dependabot
     - [x] version updates
     - [x] malware alerts

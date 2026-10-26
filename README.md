@@ -25,7 +25,8 @@ npx @rushinglabs/taskfile remove 1
 ## Web app
 
 `apps/web` is a minimal web version (TanStack Start, Tailwind, shadcn/ui, SQLite). This repo is an
-npm-workspaces monorepo: the CLI lives in `apps/cli`, the web app in `apps/web`.
+npm-workspaces monorepo: the CLI lives in `apps/cli`, the web app in `apps/web` and the Electron
+desktop app in `apps/desktop`.
 
 ```bash
 npm install
@@ -67,6 +68,17 @@ Data is stored in the `taskfile-data` Docker volume, so it survives restarts. `d
 keeps it; `docker compose down -v` deletes it.
 
 Locally the web app uses the same database as the CLI (`~/.taskfile/tasks.db`); override with `TASKFILE_DB`.
+
+## Desktop app
+
+`apps/desktop` is an Electron app: the web app in a native window, on the same database as the CLI.
+Build and develop it with the commands in [docs/desktop.md](docs/desktop.md); releases (signed,
+notarized, approved by hand before they are published) are described in
+[docs/desktop-release.md](docs/desktop-release.md).
+
+```bash
+npm run dev:desktop
+```
 
 ## Development
 
