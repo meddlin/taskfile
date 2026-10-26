@@ -1,0 +1,158 @@
+name: Release desktop
+
+# Runs only when someone pushes a desktop-v* tag by hand, never on a branch, pull request or
+# schedule. A release is:
+#
+#   git tag desktop-v0.1.0 && git push origin desktop-v0.1.0
+#
+# Three stages, with a human approval before anything becomes public:
+#   1. verify-tag  the tag matches apps/desktop/package.json and is on main; tests pass.
+#   2. build       builds both macOS architectures, signs and notarizes them, smoke-tests the app
+#                  and uploads the files as a workflow artifact (nothing is public yet). Holds the
+#                  signing secrets, in the `release` environment.
+#   3. publish     waits for a required reviewer to approve (the `release-publish` environment),
+#                  then creates the GitHub Release with the files.
+# Local equivalent of stage 2: `npm run release -w @taskfile/desktop`.
+# Setup, secrets and the approval rule: docs/desktop-release.md.
+on:
+  push:
+    tags:
+      - "desktop-v*"
+
+permissions:
+  contents: read
+
+# Never cancel a release halfway through notarization.
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Cheap checks on a Linux runner, so a mistyped tag fails before the macOS job starts.
+  verify-tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Tests don't launch Electron, so skip its ~100 MB binary download.
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Tag must match the desktop version and be on main
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          if [ "$TAG" != "desktop-v$version" ]; then
+            echo "::error::Tag $TAG doesn't match apps/desktop/package.json version $version (expected desktop-v$version). Delete the tag, fix the version on main, and tag again."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$TAG points at a commit that isn't on main. Merge it first, then tag."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.x"
+          cache: "npm"
+
+      - run: npm ci
+
+      - run: npm test
+
+  build:
+    needs: verify-tag
+    # macos-latest is Apple Silicon. The Intel build is cross-built here, so one job (and one
+    # notarization wait) covers both architectures.
+    runs-on: macos-latest
+    timeout-minutes: 60
+    # Holds the signing secrets, so only this workflow can read them.
+    environment: release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24.x"
+          cache: "npm"
+
+      - run: npm ci
+
+      # notarytool reads the key from a file, so the secret (the .p8 contents) is written to one.
+      - name: Write the App Store Connect API key
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          umask 077
+          printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "APPLE_API_KEY=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
+      # Builds the web app and the desktop app, packages both architectures, signs, notarizes,
+      # verifies (codesign, spctl, stapler), smoke-tests the app and writes SHA256SUMS.txt; see the
+      # script. electron-builder imports CSC_LINK into a temporary keychain for the run.
+      - name: Build, sign and notarize
+        working-directory: apps/desktop
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          TAG: ${{ github.ref_name }}
+        run: node scripts/release.mjs --tag "$TAG"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: desktop-release
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove the API key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+  # The approval gate. The `release-publish` environment has required reviewers, so this job does
+  # not start until one of them approves the run. Download the `desktop-release` artifact from the
+  # run's summary page first if you want to try the build before approving. Rejecting the run
+  # publishes nothing.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release-publish
+    permissions:
+      contents: write # create the release
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: desktop-release
+          path: artifacts
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cd artifacts
+          version="${TAG#desktop-v}"
+          if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
+            # A re-run after a partial failure: add to the release that's already there.
+            gh release upload "$TAG" ./* --clobber --repo "$REPO"
+          else
+            prerelease=""
+            case "$version" in *-*) prerelease="--prerelease" ;; esac
+            gh release create "$TAG" ./* \
+              --repo "$REPO" \
+              --verify-tag \
+              --title "Taskfile desktop $version" \
+              --notes "macOS desktop app (Apple Silicon: arm64, Intel: x64), signed and notarized. Open the .dmg and drag Taskfile to Applications. Checksums are in SHA256SUMS.txt. Built by the Release desktop workflow." \
+              --generate-notes \
+              $prerelease
+          fi

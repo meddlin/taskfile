@@ -1,15 +1,18 @@
 {
   "name": "taskfile-monorepo",
   "private": true,
-  "description": "Taskfile monorepo: the CLI/TUI (apps/cli) and the web app (apps/web)",
+  "description": "Taskfile monorepo: the CLI/TUI (apps/cli), the web app (apps/web) and the Electron desktop app (apps/desktop)",
   "workspaces": [
-    "apps/*"
+    "apps/cli",
+    "apps/web",
+    "apps/desktop"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm test --workspaces --if-present",
     "dev:cli": "npm run dev -w @rushinglabs/taskfile --",
     "dev:web": "npm run dev -w @taskfile/web",
+    "dev:desktop": "npm run build -w @taskfile/web && npm run dev -w @taskfile/desktop",
     "installers": "npm run installers -w @rushinglabs/taskfile --"
   },
   "engines": {

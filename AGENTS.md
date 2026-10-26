@@ -3,8 +3,9 @@
 ## Project Structure & Module Organization
 
 This is an npm-workspaces monorepo: `apps/cli` is the command-line/TUI task manager
-(`@rushinglabs/taskfile`, published to npm and packaged as native installers) and `apps/web` is a
-minimal web version (`@taskfile/web`: TanStack Start, Tailwind, shadcn/ui, SQLite via `node:sqlite`).
+(`@rushinglabs/taskfile`, published to npm and packaged as native installers), `apps/web` is a
+minimal web version (`@taskfile/web`: TanStack Start, Tailwind, shadcn/ui, SQLite via `node:sqlite`)
+and `apps/desktop` is the Electron app that wraps the web app (`@taskfile/desktop`).
 All paths below that start with `src/` or `scripts/` are relative to `apps/cli`. Run `npm install`,
 `npm test` and `npm run build` from the repository root; they cover every workspace. The lockfile and
 `LICENSE` live at the root.
@@ -22,6 +23,16 @@ before first paint by inline init scripts: `src/lib/theme.ts`, `src/lib/backgrou
 CSS in `src/styles.css`, keyed by `html[data-background]` and reused as `.backdrop-*` for the previews;
 add one by extending `BACKGROUND_OPTIONS` and adding a light and dark rule there. The database path
 comes from `src/server/data-location.ts` (`TASKFILE_DB` or the default).
+
+The desktop app (`apps/desktop`, see `docs/desktop.md`) runs the web app's production server inside
+Electron's main process on a loopback port the OS picks, guarded by a per-launch token
+(`src/main/guard.ts`), and loads it in a sandboxed `BrowserWindow`. `scripts/build.mjs` bundles that
+server and its dependencies into `dist/main.mjs`, so it needs `npm run build -w @taskfile/web` first;
+the root `workspaces` array is ordered cli, web, desktop for that reason (keep it). Electron is pinned
+to an exact version because electron-builder cannot resolve a range in a hoisted workspace. Releases
+are tag-driven (`desktop-v*`, `.github/workflows/release-desktop.yml`): build and sign on macOS in the
+`release` environment, then the `publish` job waits for approval in `release-publish` before it creates
+the GitHub Release. Setup and steps: `docs/desktop-release.md`.
 
 The CLI is a small TypeScript command-line task manager. `src/index.ts` defines the
 Commander CLI and routes subcommands. Command handlers live in `src/commands/` (`add.ts`, `list.ts`,
