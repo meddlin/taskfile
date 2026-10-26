@@ -21,12 +21,12 @@ export function listenMessage(url, env) {
   }
   const published = env.TASKFILE_PUBLISHED_PORT;
   if (published) {
-    // nosemgrep: opengrep-rules.javascript.browser.security.raw-html-join -- terminal text, never HTML
     return [
       `Taskfile is running. Open http://127.0.0.1:${published}/`,
       `(port ${port} is internal to the container; it is published on host port ${published})`,
     ].join("\n");
   }
+  // nosemgrep: opengrep-rules.javascript.browser.security.raw-html-join -- terminal text, never HTML
   return [
     `Taskfile is running on port ${port} inside the container. That port is not reachable from your machine.`,
     `Find the host port Docker assigned with: docker compose port web ${port}`,
