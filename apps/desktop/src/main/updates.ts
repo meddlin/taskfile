@@ -57,15 +57,24 @@ export interface UpdateManagerOptions {
 export const FIRST_CHECK_DELAY_MS = 30_000;
 export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
+/** Drops everything from a `<` to the next `>`, and any stray bracket after that, so no markup survives. */
+function stripTags(html: string): string {
+  let out = "";
+  let inTag = false;
+  for (const char of html) {
+    if (char === "<") inTag = true;
+    else if (char === ">") inTag = false;
+    else if (!inTag) out += char;
+  }
+  return out;
+}
+
 /** Release notes come as text, a list of notes, or nothing; the page only ever gets plain text. */
 export function releaseNotesText(notes: string | { note?: string | null }[] | null | undefined): string | undefined {
   const raw = Array.isArray(notes) ? notes.map((entry) => entry.note ?? "").filter(Boolean).join("\n\n") : notes;
   if (typeof raw !== "string") return undefined;
-  const text = raw
-    .replace(/<br\s*\/?>|<\/(?:p|h[1-6]|li|div)>/gi, "\n")
-    .replace(/<[^>]*>/g, "")
-    // Whatever is left (an unclosed or nested tag) must not read as markup; the page shows this as text anyway.
-    .replace(/[<>]/g, "")
+  const text = stripTags(raw
+    .replace(/<br\s*\/?>|<\/(?:p|h[1-6]|li|div)>/gi, "\n"))
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   return text === "" ? undefined : text;
