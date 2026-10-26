@@ -64,6 +64,8 @@ export function releaseNotesText(notes: string | { note?: string | null }[] | nu
   const text = raw
     .replace(/<br\s*\/?>|<\/(?:p|h[1-6]|li|div)>/gi, "\n")
     .replace(/<[^>]*>/g, "")
+    // Whatever is left (an unclosed or nested tag) must not read as markup; the page shows this as text anyway.
+    .replace(/[<>]/g, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
   return text === "" ? undefined : text;

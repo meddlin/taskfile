@@ -185,6 +185,8 @@ describe("helpers", () => {
   it("turns release notes into plain text", () => {
     expect(releaseNotesText("<h2>New</h2><ul><li>One</li><li>Two</li></ul>")).toBe("New\nOne\nTwo");
     expect(releaseNotesText([{ note: "a" }, { note: null }, { note: "b" }])).toBe("a\n\nb");
+    // Nested or broken tags can't leave markup behind.
+    expect(releaseNotesText("a <scr<script>ipt>b <img src=x onerror=alert(1)")).not.toMatch(/[<>]/);
     expect(releaseNotesText(null)).toBeUndefined();
     expect(releaseNotesText("  <br>  ")).toBeUndefined();
   });

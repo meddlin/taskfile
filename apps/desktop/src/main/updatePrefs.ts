@@ -37,7 +37,8 @@ export function createUpdatePrefsStore(file: string): UpdatePrefsStore {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       // Write beside the file and rename over it, so a crash can't leave half a file.
       const temporary = `${file}.${process.pid}.tmp`;
-      fs.writeFileSync(temporary, `${JSON.stringify({ autoCheck: prefs.autoCheck, allowPrerelease: prefs.allowPrerelease }, null, 2)}\n`);
+      const body = JSON.stringify({ autoCheck: prefs.autoCheck, allowPrerelease: prefs.allowPrerelease }, null, 2);
+      fs.writeFileSync(temporary, body + "\n");
       fs.renameSync(temporary, file);
     },
   };
