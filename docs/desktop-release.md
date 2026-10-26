@@ -41,7 +41,7 @@ on your Mac.
 | Approval | Optional reviewers on the `release` environment (gate *before* the build), then you publish a **draft** by hand | Required reviewer on a separate `release-publish` environment, gating *publish*. No draft step: approving creates the release |
 | Package manager | pnpm, one lockfile per app | npm workspaces, one root `package-lock.json` |
 | Bundled extras | Meilisearch, a Node runtime, the CLI | None. The web app's server is bundled into the app |
-| Auto-update | `electron-updater` + `latest-mac.yml` | Not included. Users download new versions from the Releases page |
+| Auto-update | `electron-updater` + `latest-mac.yml` from "latest release" | `electron-updater`, but the app picks the newest `desktop-v*` release itself (this repo also publishes CLI releases), with an opt-in for pre-releases: [desktop-updates.md](desktop-updates.md) |
 | Platforms | macOS | macOS (Apple Silicon and Intel) |
 
 ---
@@ -195,7 +195,7 @@ request that adds `apps/desktop` and the workflows first.
    your tasks.
 5. **Approve or reject.** On the run page click **Review deployments**, tick `release-publish`, and
    choose **Approve and deploy**. The `publish` job then creates the GitHub Release (`Taskfile desktop
-   0.1.0`) with both DMGs, both ZIPs and `SHA256SUMS.txt`, plus generated notes. **Reject** leaves
+   0.1.0`) with both DMGs, both ZIPs, the update feed (`latest-mac.yml`) with its blockmaps, and `SHA256SUMS.txt`, plus generated notes. **Approving is also what offers the release to installed apps as an update** (a pre-release version only reaches people who ticked *include pre-release versions*). **Reject** leaves
    nothing public.
 6. **Check the Releases page:** `gh release view desktop-v0.1.0 --web`.
 
@@ -229,4 +229,5 @@ git tag -d desktop-v0.1.0
   is part of the code signature. Confirm it before the first public release; changing it later
   orphans existing installs.
 - **Actions are pinned to commit SHAs** (see [AGENTS.md](../AGENTS.md)). Keep that when editing the workflow.
+- **Update files:** leave `*-mac.yml` and the `.blockmap` files attached to the release; installed apps read them ([desktop-updates.md](desktop-updates.md)).
 - **Windows and Linux** builds are not part of this pipeline; the macOS signing identity doesn't apply to them.

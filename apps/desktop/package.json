@@ -23,6 +23,7 @@
     "@types/node": "^26.6.5",
     "electron": "44.9.3",
     "electron-builder": "^26.17.0",
+    "electron-updater": "^6.8.11",
     "esbuild": "^0.28.2",
     "srvx": "^1.0.7",
     "typescript": "^7.0.2",

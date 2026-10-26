@@ -5,7 +5,7 @@ name: Release desktop
 #
 #   git tag desktop-v0.1.0 && git push origin desktop-v0.1.0
 #
-# Three stages, with a human approval before anything becomes public:
+# Publishing a release is also what offers it to installed apps as an update. Three stages, with a human approval before anything becomes public:
 #   1. verify-tag  the tag matches apps/desktop/package.json and is on main; tests pass.
 #   2. build       builds both macOS architectures, signs and notarizes them, smoke-tests the app
 #                  and uploads the files as a workflow artifact (nothing is public yet). Holds the
@@ -109,6 +109,8 @@ jobs:
           path: |
             apps/desktop/release/*.dmg
             apps/desktop/release/*.zip
+            apps/desktop/release/*.blockmap
+            apps/desktop/release/*-mac.yml
             apps/desktop/release/SHA256SUMS.txt
           if-no-files-found: error
           retention-days: 14
@@ -152,7 +154,7 @@ jobs:
               --repo "$REPO" \
               --verify-tag \
               --title "Taskfile desktop $version" \
-              --notes "macOS desktop app (Apple Silicon: arm64, Intel: x64), signed and notarized. Open the .dmg and drag Taskfile to Applications. Checksums are in SHA256SUMS.txt. Built by the Release desktop workflow." \
+              --notes "macOS desktop app (Apple Silicon: arm64, Intel: x64), signed and notarized. Open the .dmg and drag Taskfile to Applications. Checksums are in SHA256SUMS.txt. The *-mac.yml and .blockmap files are what installed apps update from; leave them attached. Built by the Release desktop workflow." \
               --generate-notes \
               $prerelease
           fi

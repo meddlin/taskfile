@@ -10,8 +10,8 @@ whatever `TASKFILE_DB` / the Settings page choose), in a native window.
   process**, on `127.0.0.1` at a port the OS picks ([`webServer.ts`](../apps/desktop/src/main/webServer.ts)).
   Its server functions therefore run on Electron's own Node, where `node:sqlite` is available, and
   nothing else needs to be installed.
-- A `BrowserWindow` loads that address. The window has no preload script and no Node access
-  (`sandbox`, `contextIsolation`); links to other sites open in the user's browser and other schemes are
+- A `BrowserWindow` loads that address. The window has no Node access (`sandbox`, `contextIsolation`);
+  its only extra is the small preload bridge for updates (`window.taskfileDesktop`); links to other sites open in the user's browser and other schemes are
   refused ([`navigation.ts`](../apps/desktop/src/main/navigation.ts)).
 - Because a loopback server is reachable by every local process and by web pages in the user's
   browser, each launch generates a random token. The window's session adds it to its requests, and the
@@ -52,4 +52,5 @@ npm run package -w @taskfile/desktop     # unsigned, unpacked Taskfile.app in ap
 npm run release -w @taskfile/desktop -- --unsigned    # both architectures, DMG + ZIP + checksums
 ```
 
+The app updates itself from GitHub Releases (Settings → updates): [desktop-updates.md](desktop-updates.md).
 Signed, notarized releases are cut from GitHub: see [desktop-release.md](desktop-release.md).

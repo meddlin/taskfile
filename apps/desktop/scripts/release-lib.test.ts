@@ -62,17 +62,43 @@ describe("release files", () => {
     expect(lib.checksumFile([{ name: "a.dmg", sha256: "abc" }, { name: "b.zip", sha256: "def" }])).toBe("abc  a.dmg\ndef  b.zip\n");
   });
 
-  it("publishes downloads and checksums, not electron-builder's other output", () => {
-    const files = ["builder-debug.yml", "Taskfile-0.1.0-arm64.dmg", "Taskfile-0.1.0-arm64.dmg.blockmap", "Taskfile-0.1.0-x64.zip", "mac-arm64", "SHA256SUMS.txt"];
+  it("publishes downloads, the update feed with its blockmaps, and checksums, not electron-builder's other output", () => {
+    const files = ["builder-debug.yml", "latest-mac.yml", "Taskfile-0.1.0-arm64.dmg", "Taskfile-0.1.0-arm64.zip.blockmap", "Taskfile-0.1.0-x64.zip", "mac-arm64", "SHA256SUMS.txt"];
     expect(lib.releaseAssetNames(files)).toEqual([
       "SHA256SUMS.txt",
       "Taskfile-0.1.0-arm64.dmg",
+      "Taskfile-0.1.0-arm64.zip.blockmap",
       "Taskfile-0.1.0-x64.zip",
+      "latest-mac.yml",
     ]);
+    expect(lib.releaseAssetNames(["rc-mac.yml"])).toEqual(["rc-mac.yml"]);
   });
 
   it("treats a version suffix as a pre-release", () => {
     expect(lib.isPrerelease("1.0.0-beta.1")).toBe(true);
     expect(lib.isPrerelease("1.0.0")).toBe(false);
+  });
+});
+
+describe("update feed", () => {
+  const feed = (version: string, zips: string[]) =>
+    [`version: ${version}`, "files:", ...zips.flatMap((z) => [`  - url: ${z}`, "    sha512: abc==", "    size: 1"]), `path: ${zips[0]}`, "sha512: abc=="].join("\n");
+
+  it("names the feed after the release channel, as electron-builder does", () => {
+    expect(lib.updateFeedName("0.1.0")).toBe("latest-mac.yml");
+    expect(lib.updateFeedName("0.2.0-rc.1")).toBe("rc-mac.yml");
+    expect(lib.updateFeedName("1.0.0-beta")).toBe("beta-mac.yml");
+  });
+
+  it("accepts a feed that lists the version and a ZIP for every architecture", () => {
+    const text = feed("0.1.0", ["Taskfile-0.1.0-arm64.zip", "Taskfile-0.1.0-x64.zip"]);
+    expect(lib.checkUpdateFeed(text, "0.1.0", ["arm64", "x64"], "Taskfile")).toEqual([]);
+  });
+
+  it("flags a missing architecture, a wrong version and missing checksums", () => {
+    const text = feed("0.1.0", ["Taskfile-0.1.0-arm64.zip"]);
+    expect(lib.checkUpdateFeed(text, "0.1.0", ["arm64", "x64"], "Taskfile").join(" ")).toContain("Taskfile-0.1.0-x64.zip");
+    expect(lib.checkUpdateFeed(text, "0.2.0", ["arm64"], "Taskfile").join(" ")).toContain("says version 0.1.0, expected 0.2.0");
+    expect(lib.checkUpdateFeed("version: 0.1.0\nfiles:\n  - url: Taskfile-0.1.0-arm64.zip", "0.1.0", ["arm64"], "Taskfile").join(" ")).toContain("sha512");
   });
 });

@@ -36,4 +36,18 @@ await build({
   banner: { js: 'import { createRequire as __createRequire } from "node:module"; const require = __createRequire(import.meta.url);' },
 });
 
+// The preload script runs sandboxed in the page's process, where only a classic script (CommonJS)
+// that requires "electron" works, so it is its own small bundle.
+await build({
+  absWorkingDir: desktopDir,
+  entryPoints: ["src/preload/index.ts"],
+  outfile: "dist/preload.cjs",
+  bundle: true,
+  platform: "node",
+  format: "cjs",
+  target: "node24",
+  logLevel: "info",
+  external: ["electron"],
+});
+
 fs.cpSync(clientAssets, path.join(distDir, "client"), { recursive: true });

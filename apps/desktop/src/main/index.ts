@@ -1,10 +1,12 @@
-import { app, BrowserWindow, Menu, session, shell } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, session, shell } from "electron";
 import { randomBytes } from "node:crypto";
 import * as path from "node:path";
 import { TOKEN_HEADER } from "./guard";
+import { registerUpdateIpc } from "./ipc";
 import { menuTemplate } from "./menu";
 import { decideNavigation } from "./navigation";
 import { runSmokeTest } from "./smokeTest";
+import { createElectronUpdates } from "./updater";
 import { startWebServer, type RunningServer } from "./webServer";
 
 const smokeTest = process.argv.includes("--smoke-test");
@@ -25,7 +27,12 @@ function createWindow(server: RunningServer): void {
     minHeight: 400,
     // Avoids a white flash before the page paints; the web app picks light or dark itself.
     show: false,
-    webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      preload: path.join(import.meta.dirname, "preload.cjs"),
+    },
   });
   window.once("ready-to-show", () => window.show());
 
@@ -62,9 +69,11 @@ async function main(): Promise<void> {
   const token = randomBytes(32).toString("hex");
   const server = await startWebServer({ clientDir, token });
 
+  const updates = createElectronUpdates({ userData: app.getPath("userData"), prepareToQuit: () => server.close() });
+
   if (smokeTest) {
     try {
-      await runSmokeTest(server, token);
+      await runSmokeTest(server, token, await updates.manager.getUpdateState());
       console.log("SMOKE PASS");
       app.exit(0);
     } catch (error) {
@@ -83,6 +92,14 @@ async function main(): Promise<void> {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate(menuTemplate({ isMac: process.platform === "darwin", devTools: !app.isPackaged })),
   );
+
+  registerUpdateIpc({
+    ipcMain,
+    updates: updates.manager,
+    isTrustedUrl: (url) => decideNavigation(url, server.origin) === "allow",
+  });
+  updates.installMenuItem();
+  updates.manager.start();
 
   app.on("second-instance", () => {
     if (!mainWindow) return;

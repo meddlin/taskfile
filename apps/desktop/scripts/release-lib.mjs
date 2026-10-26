@@ -49,9 +49,39 @@ export function checksumFile(entries) {
   return entries.map(({ name, sha256 }) => `${sha256}  ${name}\n`).join("");
 }
 
-/** Files in release/ that go on the GitHub Release. (The .blockmap files only matter to an auto-updater, which the app doesn't have.) */
+/**
+ * The name of the update feed electron-builder writes for a version: `latest-mac.yml` for a normal
+ * release, `<id>-mac.yml` for a pre-release (1.0.0-rc.1 -> rc-mac.yml). Installed apps read it.
+ */
+export function updateFeedName(version) {
+  const prerelease = /^\d+\.\d+\.\d+-([0-9A-Za-z-]+)/.exec(version);
+  return `${prerelease ? prerelease[1] : "latest"}-mac.yml`;
+}
+
+/**
+ * Checks the text of the update feed. It must name this version and a ZIP for every architecture
+ * built: an app whose architecture is missing would silently never update. Returns the problems;
+ * empty means it's good. Reads lines rather than parsing YAML: electron-builder writes the file in
+ * one fixed shape, and this needs no dependency.
+ */
+export function checkUpdateFeed(text, version, arches, productName) {
+  const problems = [];
+  const feedVersion = /^version:\s*['"]?([^'"\s]+)['"]?\s*$/m.exec(text)?.[1];
+  if (feedVersion !== version) problems.push(`The update feed says version ${feedVersion ?? "(none)"}, expected ${version}.`);
+  const urls = [...text.matchAll(/^\s*(?:-\s+)?url:\s*['"]?([^'"\s]+)['"]?\s*$/gm)].map((match) => match[1]);
+  for (const arch of arches) {
+    const zip = `${productName}-${version}-${arch}.zip`;
+    if (!urls.includes(zip)) problems.push(`The update feed doesn't list ${zip}; ${arch} Macs would never update.`);
+  }
+  if (!/^\s*sha512:\s*\S+/m.test(text)) problems.push("The update feed has no sha512 checksums.");
+  return problems;
+}
+
+/** Files in release/ that go on the GitHub Release: the downloads, and the update feed with its blockmaps (small, differential updates). */
 export function releaseAssetNames(files) {
-  return files.filter((file) => /\.(dmg|zip)$/.test(file) || file === "SHA256SUMS.txt").sort();
+  return files
+    .filter((file) => /\.(dmg|zip|blockmap)$/.test(file) || /^[0-9A-Za-z-]+-mac\.yml$/.test(file) || file === "SHA256SUMS.txt")
+    .sort();
 }
 
 /** @returns {{tag: string | null, unsigned: boolean, help: boolean}} */

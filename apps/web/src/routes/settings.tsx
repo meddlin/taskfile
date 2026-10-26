@@ -2,7 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DataLocationForm } from "~/components/data-location-form";
 import { BackgroundPicker } from "~/components/background-picker";
 import { PageNav } from "~/components/PageNav";
+import { Section } from "~/components/settings-section";
 import { ThemeToggle } from "~/components/theme-toggle";
+import { UpdatesSection } from "~/components/updates-section";
 import { formatBytes } from "~/lib/format";
 import { getDataLocation } from "~/server/functions";
 
@@ -10,17 +12,6 @@ export const Route = createFileRoute("/settings")({
   loader: () => getDataLocation(),
   component: SettingsPage,
 });
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3 border-t border-border pt-4">
-      <h2 className="font-bold">
-        <span className="text-accent">#</span> {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
 
 const SOURCE_LABEL = {
   environment: "set by TASKFILE_DB (change it there)",
@@ -49,6 +40,8 @@ function SettingsPage() {
       <Section title="background">
         <BackgroundPicker />
       </Section>
+
+      <UpdatesSection />
 
       <Section title="data">
         <p className="text-muted-foreground">tasks are stored in this SQLite database:</p>

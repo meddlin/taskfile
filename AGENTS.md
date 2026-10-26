@@ -33,6 +33,11 @@ to an exact version because electron-builder cannot resolve a range in a hoisted
 are tag-driven (`desktop-v*`, `.github/workflows/release-desktop.yml`): build and sign on macOS in the
 `release` environment, then the `publish` job waits for approval in `release-publish` before it creates
 the GitHub Release. Setup and steps: `docs/desktop-release.md`.
+Over-the-air updates (`docs/desktop-updates.md`) use `electron-updater` driven by `src/main/updates.ts`; because
+the repo also holds CLI releases, `src/main/releaseFeed.ts` picks the newest `desktop-v*` GitHub release itself
+(pre-releases only when the user opts in) and every release must carry its `*-mac.yml` feed and blockmaps. The
+Settings page's updates section talks to the main process through `window.taskfileDesktop` (preload) and the
+shared contract in `apps/web/src/lib/desktop-updates.ts`.
 
 The CLI is a small TypeScript command-line task manager. `src/index.ts` defines the
 Commander CLI and routes subcommands. Command handlers live in `src/commands/` (`add.ts`, `list.ts`,

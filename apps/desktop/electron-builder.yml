@@ -47,3 +47,13 @@ mac:
 
 dmg:
   title: ${productName} ${version}
+
+# Over-the-air updates (docs/desktop-updates.md). This block is what makes electron-builder write
+# the update feed next to the ZIPs (latest-mac.yml, or rc-mac.yml etc. for a pre-release version) plus
+# .blockmap files; the release workflow attaches them to the GitHub Release. The app does not read
+# this URL: this repository also publishes the CLI's installers, so "latest" can be a CLI release.
+# src/main/releaseFeed.ts finds the newest desktop release itself. Nothing is uploaded by
+# electron-builder: publishing stays the workflow's job.
+publish:
+  provider: generic
+  url: https://github.com/meddlin/taskfile/releases

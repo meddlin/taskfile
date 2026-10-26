@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { APP_DIRS, checksumFile, hasDeveloperId, parseArgs, releaseAssetNames, signingProblems, tagVersion } from "./release-lib.mjs";
+import { APP_DIRS, checkUpdateFeed, checksumFile, hasDeveloperId, parseArgs, releaseAssetNames, signingProblems, tagVersion, updateFeedName } from "./release-lib.mjs";
 
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(desktopDir, "../..");
@@ -59,6 +59,13 @@ function main() {
       run("xcrun", ["stapler", "validate", app]);
     }
   }
+
+  // Installed apps update from this file, so a wrong one fails silently for every user. Check it now.
+  const feedName = updateFeedName(pkg.version);
+  const feedFile = path.join(releaseDir, feedName);
+  if (!fs.existsSync(feedFile)) throw new Error(`Expected the update feed release/${feedName}; electron-builder did not write it.`);
+  const feedProblems = checkUpdateFeed(fs.readFileSync(feedFile, "utf8"), pkg.version, Object.keys(APP_DIRS), pkg.productName);
+  if (feedProblems.length > 0) throw new Error(`Bad update feed:\n  - ${feedProblems.join("\n  - ")}`);
 
   // The runner can only launch the architecture it is.
   const native = apps.find(({ arch }) => arch === process.arch);
