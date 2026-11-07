@@ -1,7 +1,6 @@
 import { startTransition, useEffect, useOptimistic, useState } from "react";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { PageNav } from "~/components/PageNav";
-import { ThemeToggle } from "~/components/theme-toggle";
 import { cn } from "~/lib/utils";
 import { STATUS_LABELS, TASK_STATUSES, groupByStatus, stepStatus, type TaskStatus } from "~/server/board";
 import { getStatusBoard, sendToBoard, setTaskStatus, type ActionResult } from "~/server/functions";
@@ -111,10 +110,7 @@ function BoardPage() {
           <span className="text-accent">$</span> taskfile board
           <span aria-hidden className="animate-blink ml-1 inline-block h-[1em] w-[0.6em] translate-y-[0.15em] bg-accent" />
         </h1>
-        <div className="flex items-baseline gap-4">
-          <PageNav />
-          <ThemeToggle />
-        </div>
+        <PageNav />
       </header>
 
       {error && (
